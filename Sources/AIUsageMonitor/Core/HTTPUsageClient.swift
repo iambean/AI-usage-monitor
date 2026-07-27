@@ -1,0 +1,45 @@
+import Foundation
+
+enum HTTPUsageError: LocalizedError {
+  case invalidResponse
+  case unauthorized
+  case server(status: Int, message: String?)
+
+  var errorDescription: String? {
+    switch self {
+    case .invalidResponse:
+      return "服务返回了无法识别的数据"
+    case .unauthorized:
+      return "凭证无效或已过期"
+    case .server(let status, let message):
+      if let message, !message.isEmpty {
+        return "查询失败（HTTP \(status)）：\(message)"
+      }
+      return "查询失败（HTTP \(status)）"
+    }
+  }
+}
+
+enum HTTPUsageClient {
+  static func get(url: URL, bearerToken: String) async throws -> Data {
+    var request = URLRequest(url: url)
+    request.httpMethod = "GET"
+    request.timeoutInterval = 15
+    request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
+    request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+    let (data, response) = try await URLSession.shared.data(for: request)
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw HTTPUsageError.invalidResponse
+    }
+    if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+      throw HTTPUsageError.unauthorized
+    }
+    guard (200...299).contains(httpResponse.statusCode) else {
+      let message = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+      let detail = message?["message"] as? String ?? message?["error"] as? String
+      throw HTTPUsageError.server(status: httpResponse.statusCode, message: detail)
+    }
+    return data
+  }
+}
