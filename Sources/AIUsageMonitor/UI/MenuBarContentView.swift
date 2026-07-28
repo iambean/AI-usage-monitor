@@ -79,13 +79,10 @@ struct MenuBarContentView: View {
     action: @escaping () -> Void
   ) -> some View {
     Button(action: action) {
-      Label(title, systemImage: symbol)
-        .font(.system(size: 11))
+      MenuBarFooterButtonLabel(title: title, symbol: symbol)
     }
     .buttonStyle(.plain)
     .foregroundStyle(.secondary)
-    .padding(.vertical, 3)
-    .padding(.trailing, 8)
   }
 
   private func openSettings() {
@@ -122,12 +119,22 @@ private struct FocusedSettingsButton: View {
       }
       .present()
     } label: {
-      Label("设置", systemImage: "gearshape")
-        .font(.system(size: 11))
+      MenuBarFooterButtonLabel(title: "设置", symbol: "gearshape")
     }
     .buttonStyle(.plain)
     .foregroundStyle(.secondary)
-    .padding(.vertical, 3)
-    .padding(.trailing, 8)
+  }
+}
+
+private struct MenuBarFooterButtonLabel: View {
+  let title: String
+  let symbol: String
+
+  var body: some View {
+    Label(title, systemImage: symbol)
+      .font(.system(size: 11))
+      .padding(.horizontal, 6)
+      .padding(.vertical, 6)
+      .contentShape(Rectangle())
   }
 }
