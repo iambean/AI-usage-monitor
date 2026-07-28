@@ -21,6 +21,12 @@ enum ProviderConfigurationKind: Sendable, Equatable {
   case qoderTeams
 }
 
+enum ProviderSupportTier: String, Sendable, Equatable {
+  case stable
+  case compatible
+  case unavailable
+}
+
 struct ProviderMetadata: Identifiable, Sendable, Equatable {
   let id: ProviderID
   let name: String
@@ -28,6 +34,7 @@ struct ProviderMetadata: Identifiable, Sendable, Equatable {
   let detail: String
   let availability: ProviderAvailability
   let configurationKind: ProviderConfigurationKind
+  let supportTier: ProviderSupportTier
 }
 
 enum ProviderCatalog {
@@ -36,57 +43,72 @@ enum ProviderCatalog {
       id: .codex,
       name: "Codex",
       symbolName: "c.circle.fill",
-      detail: "自动读取 Codex CLI",
+      detail: L10n.text("provider.codex.detail", "自动读取 Codex CLI"),
       availability: .available,
-      configurationKind: .automatic
+      configurationKind: .automatic,
+      supportTier: .compatible
     ),
     ProviderMetadata(
       id: .claude,
       name: "Claude Code",
       symbolName: "a.circle.fill",
-      detail: "自动读取 Claude Code 状态栏数据",
+      detail: L10n.text(
+        "provider.claude.detail",
+        "自动读取 Claude Code 状态栏数据"
+      ),
       availability: .available,
-      configurationKind: .automatic
+      configurationKind: .automatic,
+      supportTier: .compatible
     ),
     ProviderMetadata(
       id: .kimi,
       name: "Kimi Code",
       symbolName: "moon.circle.fill",
-      detail: "自动读取 Kimi Code /usage",
+      detail: L10n.text("provider.kimi.detail", "自动读取 Kimi Code /usage"),
       availability: .available,
-      configurationKind: .automatic
+      configurationKind: .automatic,
+      supportTier: .compatible
     ),
     ProviderMetadata(
       id: .minimax,
       name: "MiniMax",
       symbolName: "m.circle.fill",
-      detail: "需要 Token Plan 订阅 Key",
+      detail: L10n.text("provider.minimax.detail", "需要 Token Plan 订阅 Key"),
       availability: .available,
-      configurationKind: .apiKey
+      configurationKind: .apiKey,
+      supportTier: .stable
     ),
     ProviderMetadata(
       id: .deepseek,
       name: "DeepSeek",
       symbolName: "d.circle.fill",
-      detail: "需要 DeepSeek API Key",
+      detail: L10n.text("provider.deepseek.detail", "需要 DeepSeek API Key"),
       availability: .available,
-      configurationKind: .apiKey
+      configurationKind: .apiKey,
+      supportTier: .stable
     ),
     ProviderMetadata(
       id: .qoder,
       name: "Qoder Teams",
       symbolName: "q.circle.fill",
-      detail: "需要 Teams OpenAPI 配置",
+      detail: L10n.text("provider.qoder.detail", "需要 Teams OpenAPI 配置"),
       availability: .available,
-      configurationKind: .qoderTeams
+      configurationKind: .qoderTeams,
+      supportTier: .stable
     ),
     ProviderMetadata(
       id: .glm,
       name: "GLM Coding Plan",
       symbolName: "g.circle.fill",
-      detail: "暂不可用",
-      availability: .unavailable("官方暂未提供稳定的用量查询接口"),
-      configurationKind: .automatic
+      detail: L10n.text("status.temporarilyUnavailable", "暂不可用"),
+      availability: .unavailable(
+        L10n.text(
+          "provider.glm.unavailableReason",
+          "官方暂未提供稳定的用量查询接口"
+        )
+      ),
+      configurationKind: .automatic,
+      supportTier: .unavailable
     ),
   ]
 
@@ -108,6 +130,7 @@ enum UsageValueKind: String, Codable, Sendable {
   case remaining
   case balance
   case usedOfLimit
+  case unlimited
 }
 
 struct UsageValue: Codable, Sendable, Equatable {
@@ -139,6 +162,10 @@ struct UsageValue: Codable, Sendable, Equatable {
     UsageValue(kind: .usedOfLimit, value: value, total: total, unit: unit, currency: nil)
   }
 
+  static var unlimited: UsageValue {
+    UsageValue(kind: .unlimited, value: 1, total: nil, unit: nil, currency: nil)
+  }
+
   var availableFraction: Double? {
     switch kind {
     case .availablePercent:
@@ -151,6 +178,8 @@ struct UsageValue: Codable, Sendable, Equatable {
       return ((total - value) / total).clamped(to: 0...1)
     case .balance:
       return nil
+    case .unlimited:
+      return 1
     }
   }
 
@@ -172,6 +201,8 @@ struct UsageValue: Codable, Sendable, Equatable {
       return "\(Self.number(value))/\(Self.number(total)) \(unit ?? "")".trimmingCharacters(
         in: .whitespaces
       )
+    case .unlimited:
+      return "∞"
     }
   }
 
@@ -187,12 +218,12 @@ struct UsageValue: Codable, Sendable, Equatable {
 
   var caption: String {
     switch kind {
-    case .availablePercent, .remaining:
-      return "剩余"
+    case .availablePercent, .remaining, .unlimited:
+      return L10n.text("usage.remaining", "剩余")
     case .balance:
-      return "余额"
+      return L10n.text("usage.balance", "余额")
     case .usedOfLimit:
-      return "已用"
+      return L10n.text("usage.used", "已用")
     }
   }
 
@@ -223,12 +254,36 @@ struct UsageValue: Codable, Sendable, Equatable {
   }
 }
 
+enum UsagePeriodKind: String, Codable, Sendable, Equatable {
+  case fiveHour
+  case weekly
+  case monthly
+  case other
+}
+
 struct UsageMetric: Identifiable, Codable, Sendable, Equatable {
   let id: String
   let label: String
   let value: UsageValue
   let resetsAt: Date?
   let resetDescription: String?
+  let period: UsagePeriodKind?
+
+  init(
+    id: String,
+    label: String,
+    value: UsageValue,
+    resetsAt: Date?,
+    resetDescription: String?,
+    period: UsagePeriodKind? = nil
+  ) {
+    self.id = id
+    self.label = label
+    self.value = value
+    self.resetsAt = resetsAt
+    self.resetDescription = resetDescription
+    self.period = period
+  }
 }
 
 struct ProviderUsageState: Identifiable, Codable, Sendable, Equatable {
@@ -240,6 +295,95 @@ struct ProviderUsageState: Identifiable, Codable, Sendable, Equatable {
   var metrics: [UsageMetric]
   var updatedAt: Date?
   var message: String?
+  var recoverySuggestion: String?
+
+  init(
+    id: ProviderID,
+    name: String,
+    symbolName: String,
+    status: ProviderConnectionStatus,
+    summary: UsageValue?,
+    metrics: [UsageMetric],
+    updatedAt: Date?,
+    message: String?,
+    recoverySuggestion: String? = nil
+  ) {
+    self.id = id
+    self.name = name
+    self.symbolName = symbolName
+    self.status = status
+    self.summary = summary
+    self.metrics = metrics
+    self.updatedAt = updatedAt
+    self.message = message
+    self.recoverySuggestion = recoverySuggestion
+  }
+
+  var defaultSummary: UsageValue? {
+    guard status == .connected || status == .stale else { return nil }
+    return Self.preferredSummary(in: metrics) ?? summary
+  }
+
+  var displayMetrics: [UsageMetric] {
+    metrics.enumerated()
+      .sorted { lhs, rhs in
+        let lhsPriority = Self.displayPriority(Self.periodKind(for: lhs.element))
+        let rhsPriority = Self.displayPriority(Self.periodKind(for: rhs.element))
+        return lhsPriority == rhsPriority
+          ? lhs.offset < rhs.offset
+          : lhsPriority < rhsPriority
+      }
+      .map(\.element)
+  }
+
+  static func preferredSummary(in metrics: [UsageMetric]) -> UsageValue? {
+    metrics.first(where: { periodKind(for: $0) == .fiveHour })?.value
+      ?? metrics.first(where: { periodKind(for: $0) == .weekly })?.value
+      ?? metrics.first?.value
+  }
+
+  private static func periodKind(for metric: UsageMetric) -> UsagePeriodKind? {
+    if let period = metric.period {
+      return period
+    }
+
+    let id = metric.id.lowercased()
+    if id.contains(".5h") || id.contains(".300.") {
+      return .fiveHour
+    }
+    if id.contains("weekly") || id.hasSuffix(".secondary") || id == "kimi.period" {
+      return .weekly
+    }
+    return nil
+  }
+
+  private static func displayPriority(_ period: UsagePeriodKind?) -> Int {
+    switch period {
+    case .fiveHour:
+      return 0
+    case .weekly:
+      return 1
+    case .monthly:
+      return 2
+    case .other, nil:
+      return 3
+    }
+  }
+
+  func failed(
+    status: ProviderConnectionStatus = .error,
+    message: String,
+    recoverySuggestion: String
+  ) -> ProviderUsageState {
+    var state = self
+    state.status = status
+    state.summary = nil
+    state.metrics = []
+    state.updatedAt = nil
+    state.message = message
+    state.recoverySuggestion = recoverySuggestion
+    return state
+  }
 
   static func loading(_ id: ProviderID) -> ProviderUsageState {
     let metadata = ProviderCatalog.metadata(for: id)
@@ -251,7 +395,8 @@ struct ProviderUsageState: Identifiable, Codable, Sendable, Equatable {
       summary: nil,
       metrics: [],
       updatedAt: nil,
-      message: "正在连接"
+      message: L10n.text("status.connectingNow", "正在连接"),
+      recoverySuggestion: nil
     )
   }
 }

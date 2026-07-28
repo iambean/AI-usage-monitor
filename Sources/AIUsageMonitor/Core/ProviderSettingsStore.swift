@@ -5,9 +5,27 @@ struct QoderConfiguration: Codable, Sendable, Equatable {
   var memberID = ""
 }
 
+enum MiniMaxRegion: String, Codable, CaseIterable, Sendable {
+  case automatic
+  case global
+  case china
+
+  var title: String {
+    switch self {
+    case .automatic:
+      return L10n.text("settings.regionAutomatic", "自动检测")
+    case .global:
+      return L10n.text("settings.regionGlobal", "海外")
+    case .china:
+      return L10n.text("settings.regionChina", "中国大陆")
+    }
+  }
+}
+
 enum ProviderSettingsStore {
   private static let enabledKey = "enabled-provider-ids"
   private static let qoderKey = "qoder-configuration"
+  private static let minimaxRegionKey = "minimax-region"
 
   static func enabledProviderIDs() -> [ProviderID] {
     guard let rawValues = UserDefaults.standard.array(forKey: enabledKey) as? [String] else {
@@ -37,5 +55,19 @@ enum ProviderSettingsStore {
   static func setQoderConfiguration(_ configuration: QoderConfiguration) {
     guard let data = try? JSONEncoder().encode(configuration) else { return }
     UserDefaults.standard.set(data, forKey: qoderKey)
+  }
+
+  static func miniMaxRegion() -> MiniMaxRegion {
+    guard
+      let rawValue = UserDefaults.standard.string(forKey: minimaxRegionKey),
+      let value = MiniMaxRegion(rawValue: rawValue)
+    else {
+      return .automatic
+    }
+    return value
+  }
+
+  static func setMiniMaxRegion(_ region: MiniMaxRegion) {
+    UserDefaults.standard.set(region.rawValue, forKey: minimaxRegionKey)
   }
 }

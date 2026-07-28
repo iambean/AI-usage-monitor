@@ -38,11 +38,18 @@ enum CodexClientError: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .executableNotFound(let path):
-      return "找不到 Codex CLI：\(path)"
+      return L10n.format("error.codexNotFound", "找不到 Codex CLI：%@", path)
     case .processExited(let code):
-      return "Codex App Server 已退出（\(code)）"
+      return L10n.format(
+        "error.codexServerExited",
+        "Codex App Server 已退出（%d）",
+        code
+      )
     case .missingInput:
-      return "无法写入 Codex App Server"
+      return L10n.text(
+        "error.codexServerWrite",
+        "无法写入 Codex App Server"
+      )
     case .rpc(let message):
       return message
     }

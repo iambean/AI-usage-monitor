@@ -31,7 +31,11 @@ enum DeepSeekUsageParser {
       guard let total = Double(item.totalBalance) else { return nil }
       return UsageMetric(
         id: "deepseek.\(item.currency.lowercased())",
-        label: "\(item.currency) 可用余额",
+        label: L10n.format(
+          "usage.availableBalance",
+          "%@ 可用余额",
+          item.currency
+        ),
         value: .balance(total, currency: item.currency),
         resetsAt: nil,
         resetDescription: nil
@@ -50,7 +54,12 @@ enum DeepSeekUsageParser {
       summary: summary,
       metrics: metrics,
       updatedAt: now,
-      message: response.isAvailable ? nil : "当前余额不可用于 API 调用"
+      message: response.isAvailable
+        ? nil
+        : L10n.text(
+          "error.balanceUnavailable",
+          "当前余额不可用于 API 调用"
+        )
     )
   }
 }

@@ -32,9 +32,66 @@ final class ProviderUsageParserTests: XCTestCase {
       now: Date(timeIntervalSince1970: 1_000)
     )
 
-    XCTAssertEqual(state.summary, .availablePercent(59))
+    XCTAssertEqual(state.summary, .availablePercent(100))
     XCTAssertEqual(state.metrics.map(\.label), ["周期", "5 小时"])
     XCTAssertEqual(state.metrics.map(\.value.value), [59, 100])
+  }
+
+  func testParsesKimiLimitWhenUsedIsMissing() throws {
+    let data = Data(
+      """
+      {
+        "usage": {
+          "limit": "100",
+          "used": "29",
+          "remaining": "71",
+          "resetTime": "2026-08-01T00:00:00Z"
+        },
+        "limits": [{
+          "window": {"duration": 300, "timeUnit": "TIME_UNIT_MINUTE"},
+          "detail": {
+            "limit": "100",
+            "remaining": "100",
+            "resetTime": "2026-07-28T15:00:00Z"
+          }
+        }]
+      }
+      """.utf8
+    )
+
+    let state = try KimiUsageParser.parse(data)
+
+    XCTAssertEqual(state.summary, .availablePercent(100))
+    XCTAssertEqual(state.metrics.map(\.label), ["周期", "5 小时"])
+    XCTAssertEqual(state.metrics.map(\.value.value), [71, 100])
+  }
+
+  func testParsesKimiExhaustedLimitWhenRemainingIsMissing() throws {
+    let data = Data(
+      """
+      {
+        "usage": {
+          "limit": "100",
+          "used": "78",
+          "remaining": "22",
+          "resetTime": "2026-07-31T23:29:17.285992Z"
+        },
+        "limits": [{
+          "window": {"duration": 300, "timeUnit": "TIME_UNIT_MINUTE"},
+          "detail": {
+            "limit": "100",
+            "used": "100",
+            "resetTime": "2026-07-28T06:29:17.285992Z"
+          }
+        }]
+      }
+      """.utf8
+    )
+
+    let state = try KimiUsageParser.parse(data)
+
+    XCTAssertEqual(state.summary, .availablePercent(0))
+    XCTAssertEqual(state.metrics.map(\.value.value), [22, 0])
   }
 
   func testParsesMiniMaxRemainingPercent() throws {
@@ -56,8 +113,67 @@ final class ProviderUsageParserTests: XCTestCase {
 
     let state = try MiniMaxUsageParser.parse(data)
 
-    XCTAssertEqual(state.summary, .availablePercent(41))
+    XCTAssertEqual(state.summary, .availablePercent(72.5))
     XCTAssertEqual(state.metrics.map(\.value.value), [72.5, 41])
+  }
+
+  func testParsesCurrentMiniMaxTokenPlanCountsAsUsedValues() throws {
+    let data = Data(
+      """
+      {
+        "base_resp": {"status_code": 0, "status_msg": "success"},
+        "model_remains": [{
+          "model_name": "MiniMax-M2.7",
+          "end_time": 2000000000000,
+          "current_interval_total_count": 1500,
+          "current_interval_usage_count": 228,
+          "current_weekly_total_count": 15000,
+          "current_weekly_usage_count": 780,
+          "current_weekly_status": 1,
+          "weekly_end_time": 2000100000000
+        }]
+      }
+      """.utf8
+    )
+
+    let state = try MiniMaxUsageParser.parse(data)
+
+    XCTAssertEqual(state.metrics.map(\.value.value), [84.8, 94.8])
+    XCTAssertEqual(state.summary, .availablePercent(84.8))
+  }
+
+  func testParsesUnlimitedMiniMaxWeeklyQuota() throws {
+    let data = Data(
+      """
+      {
+        "base_resp": {"status_code": 0, "status_msg": "success"},
+        "model_remains": [{
+          "model_name": "MiniMax-M2.7",
+          "current_interval_total_count": 1500,
+          "current_interval_usage_count": 0,
+          "current_weekly_total_count": 0,
+          "current_weekly_usage_count": 0,
+          "current_weekly_status": 3
+        }]
+      }
+      """.utf8
+    )
+
+    let state = try MiniMaxUsageParser.parse(data)
+
+    XCTAssertEqual(state.metrics.map(\.value), [.availablePercent(100), .unlimited])
+    XCTAssertEqual(state.metrics.last?.value.displayText, "∞")
+  }
+
+  func testUsesCurrentMiniMaxTokenPlanEndpoints() {
+    XCTAssertEqual(
+      MiniMaxUsageProviderFactory.endpoint(for: .global).absoluteString,
+      "https://api.minimax.io/v1/token_plan/remains"
+    )
+    XCTAssertEqual(
+      MiniMaxUsageProviderFactory.endpoint(for: .china).absoluteString,
+      "https://api.minimaxi.com/v1/token_plan/remains"
+    )
   }
 
   func testParsesDeepSeekBalanceWithoutInventingPercent() throws {
@@ -125,7 +241,7 @@ final class ProviderUsageParserTests: XCTestCase {
 
     let state = try ClaudeUsageParser.parse(data)
 
-    XCTAssertEqual(state.summary, .availablePercent(39))
+    XCTAssertEqual(state.summary, .availablePercent(76))
     XCTAssertEqual(state.metrics.map(\.value.value), [76, 39])
     XCTAssertEqual(
       state.metrics.first?.resetsAt,

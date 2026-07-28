@@ -2,35 +2,34 @@ import SwiftUI
 
 @main
 struct AIUsageMonitorApp: App {
-  @StateObject private var model = AppModel()
+  @NSApplicationDelegateAdaptor(AIUsageMonitorAppDelegate.self)
+  private var appDelegate
 
   var body: some Scene {
-    MenuBarExtra {
-      MenuBarContentView()
-        .environmentObject(model)
-    } label: {
-      HStack(spacing: 4) {
-        Image(systemName: model.primaryState.symbolName)
-          .symbolRenderingMode(.monochrome)
-        Text(menuBarText)
-          .monospacedDigit()
-      }
-      .task {
-        model.startIfNeeded()
-      }
-    }
-    .menuBarExtraStyle(.window)
-
     Settings {
       SettingsView()
-        .environmentObject(model)
+        .environmentObject(appDelegate.model)
     }
   }
+}
 
-  private var menuBarText: String {
-    guard !model.providerStates.isEmpty else {
-      return "—"
+@MainActor
+final class AIUsageMonitorAppDelegate: NSObject, NSApplicationDelegate {
+  let model = AppModel()
+  private var statusBarController: StatusBarController?
+  private var terminationTask: Task<Void, Never>?
+
+  func applicationDidFinishLaunching(_ notification: Notification) {
+    statusBarController = StatusBarController(model: model)
+  }
+
+  func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+    guard terminationTask == nil else { return .terminateLater }
+    terminationTask = Task { @MainActor [weak self, weak sender] in
+      guard let self, let sender else { return }
+      await model.shutdown()
+      sender.reply(toApplicationShouldTerminate: true)
     }
-    return model.primaryState.summary?.compactDisplayText ?? "—"
+    return .terminateLater
   }
 }

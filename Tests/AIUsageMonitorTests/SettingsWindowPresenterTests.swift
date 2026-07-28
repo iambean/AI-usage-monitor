@@ -1,9 +1,24 @@
+import AppKit
 import XCTest
 
 @testable import AIUsageMonitor
 
 @MainActor
 final class SettingsWindowPresenterTests: XCTestCase {
+  func testNaturalWindowPolicyRestoresNormalLayerAndSpaceBehavior() {
+    let window = NSPanel()
+    window.level = .statusBar
+    window.collectionBehavior.insert(.canJoinAllSpaces)
+    window.collectionBehavior.insert(.fullScreenAuxiliary)
+
+    WindowPresentationPolicy.natural.apply(to: window)
+
+    XCTAssertEqual(window.level, .normal)
+    XCTAssertFalse(window.hidesOnDeactivate)
+    XCTAssertFalse(window.collectionBehavior.contains(.canJoinAllSpaces))
+    XCTAssertFalse(window.collectionBehavior.contains(.fullScreenAuxiliary))
+  }
+
   func testOpensBeforeSchedulingWindowFocus() {
     var events: [String] = []
     var scheduledFocus: (() -> Void)?

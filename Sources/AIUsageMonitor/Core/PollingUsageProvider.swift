@@ -3,11 +3,13 @@ import Foundation
 actor PollingUsageProvider: UsageProvider {
   nonisolated let metadata: ProviderMetadata
 
-  private let refreshInterval: TimeInterval
+  private let baseRefreshInterval: TimeInterval
   private let fetch: @Sendable () async throws -> ProviderUsageState
   private var continuation: AsyncStream<ProviderUsageState>.Continuation?
   private var currentState: ProviderUsageState?
   private var pollingTask: Task<Void, Never>?
+  private var isStarted = false
+  private var refreshRole = ProviderRefreshRole.primary
   private var lastAttemptAt: Date?
   private var isRefreshing = false
   private var consecutiveFailures = 0
@@ -18,7 +20,7 @@ actor PollingUsageProvider: UsageProvider {
     fetch: @escaping @Sendable () async throws -> ProviderUsageState
   ) {
     self.metadata = metadata
-    self.refreshInterval = refreshInterval
+    baseRefreshInterval = refreshInterval
     self.fetch = fetch
   }
 
@@ -32,18 +34,26 @@ actor PollingUsageProvider: UsageProvider {
   }
 
   func start() async {
-    guard pollingTask == nil else { return }
+    guard !isStarted else { return }
+    isStarted = true
     _ = await performRefresh(bypassingManualThrottle: true)
-    pollingTask = Task { [weak self] in
-      await self?.pollForever()
-    }
+    restartPolling()
   }
 
   func refresh() async {
     _ = await performRefresh(bypassingManualThrottle: false)
   }
 
+  func setRefreshRole(_ role: ProviderRefreshRole) async {
+    guard refreshRole != role else { return }
+    refreshRole = role
+    if isStarted {
+      restartPolling()
+    }
+  }
+
   func stop() async {
+    isStarted = false
     pollingTask?.cancel()
     pollingTask = nil
     continuation?.finish()
@@ -52,7 +62,7 @@ actor PollingUsageProvider: UsageProvider {
 
   private func pollForever() async {
     while !Task.isCancelled {
-      let delay = nextRefreshDelay
+      guard let delay = nextRefreshDelay else { return }
       do {
         try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
       } catch {
@@ -60,6 +70,15 @@ actor PollingUsageProvider: UsageProvider {
       }
       guard !Task.isCancelled else { return }
       _ = await performRefresh(bypassingManualThrottle: true)
+    }
+  }
+
+  private func restartPolling() {
+    pollingTask?.cancel()
+    pollingTask = nil
+    guard nextRefreshDelay != nil else { return }
+    pollingTask = Task { [weak self] in
+      await self?.pollForever()
     }
   }
 
@@ -86,18 +105,24 @@ actor PollingUsageProvider: UsageProvider {
       return true
     } catch {
       consecutiveFailures += 1
-      var state = currentState ?? .loading(metadata.id)
-      state.status = .error
-      state.message = error.localizedDescription
+      let state = (currentState ?? .loading(metadata.id)).failed(
+        message: error.localizedDescription,
+        recoverySuggestion: ProviderRecoverySuggestion.text(
+          for: error,
+          providerID: metadata.id
+        )
+      )
       currentState = state
       continuation?.yield(state)
       return false
     }
   }
 
-  private var nextRefreshDelay: TimeInterval {
-    guard consecutiveFailures > 0 else { return refreshInterval }
-    let backoff: [TimeInterval] = [60, 120, 300, 900, 1_800]
-    return backoff[min(consecutiveFailures - 1, backoff.count - 1)]
+  private var nextRefreshDelay: TimeInterval? {
+    ProviderRefreshPolicy.failureDelay(
+      baseInterval: baseRefreshInterval,
+      role: refreshRole,
+      consecutiveFailures: consecutiveFailures
+    )
   }
 }

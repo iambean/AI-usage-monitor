@@ -5,9 +5,10 @@ actor CodexUsageProvider: UsageProvider {
     id: .codex,
     name: "Codex",
     symbolName: "c.circle.fill",
-    detail: "自动读取 Codex CLI",
+    detail: L10n.text("provider.codex.detail", "自动读取 Codex CLI"),
     availability: .available,
-    configurationKind: .automatic
+    configurationKind: .automatic,
+    supportTier: .compatible
   )
 
   private let client: CodexAppServerClient
@@ -15,6 +16,8 @@ actor CodexUsageProvider: UsageProvider {
   private var currentState: ProviderUsageState?
   private var pollingTask: Task<Void, Never>?
   private var notificationTask: Task<Void, Never>?
+  private var isStarted = false
+  private var refreshRole = ProviderRefreshRole.primary
   private var lastAttemptAt: Date?
   private var isRefreshing = false
   private var consecutiveFailures = 0
@@ -33,7 +36,8 @@ actor CodexUsageProvider: UsageProvider {
   }
 
   func start() async {
-    guard pollingTask == nil else { return }
+    guard !isStarted else { return }
+    isStarted = true
 
     let notifications = await client.notifications()
     notificationTask = Task { [weak self] in
@@ -44,16 +48,23 @@ actor CodexUsageProvider: UsageProvider {
     }
 
     _ = await performRefresh(bypassingManualThrottle: true)
-    pollingTask = Task { [weak self] in
-      await self?.pollForever()
-    }
+    restartPolling()
   }
 
   func refresh() async {
     _ = await performRefresh(bypassingManualThrottle: false)
   }
 
+  func setRefreshRole(_ role: ProviderRefreshRole) async {
+    guard refreshRole != role else { return }
+    refreshRole = role
+    if isStarted {
+      restartPolling()
+    }
+  }
+
   func stop() async {
+    isStarted = false
     pollingTask?.cancel()
     notificationTask?.cancel()
     pollingTask = nil
@@ -65,7 +76,7 @@ actor CodexUsageProvider: UsageProvider {
 
   private func pollForever() async {
     while !Task.isCancelled {
-      let delay = nextRefreshDelay
+      guard let delay = nextRefreshDelay else { return }
       do {
         try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
       } catch {
@@ -73,6 +84,15 @@ actor CodexUsageProvider: UsageProvider {
       }
       guard !Task.isCancelled else { return }
       _ = await performRefresh(bypassingManualThrottle: true)
+    }
+  }
+
+  private func restartPolling() {
+    pollingTask?.cancel()
+    pollingTask = nil
+    guard nextRefreshDelay != nil else { return }
+    pollingTask = Task { [weak self] in
+      await self?.pollForever()
     }
   }
 
@@ -101,9 +121,13 @@ actor CodexUsageProvider: UsageProvider {
       return true
     } catch {
       consecutiveFailures += 1
-      var state = currentState ?? .loading(.codex)
-      state.status = .error
-      state.message = error.localizedDescription
+      let state = (currentState ?? .loading(.codex)).failed(
+        message: error.localizedDescription,
+        recoverySuggestion: ProviderRecoverySuggestion.text(
+          for: error,
+          providerID: .codex
+        )
+      )
       currentState = state
       continuation?.yield(state)
       return false
@@ -125,9 +149,11 @@ actor CodexUsageProvider: UsageProvider {
     continuation?.yield(state)
   }
 
-  private var nextRefreshDelay: TimeInterval {
-    guard consecutiveFailures > 0 else { return 300 }
-    let backoff: [TimeInterval] = [60, 120, 300, 900, 1_800]
-    return backoff[min(consecutiveFailures - 1, backoff.count - 1)]
+  private var nextRefreshDelay: TimeInterval? {
+    ProviderRefreshPolicy.failureDelay(
+      baseInterval: 300,
+      role: refreshRole,
+      consecutiveFailures: consecutiveFailures
+    )
   }
 }

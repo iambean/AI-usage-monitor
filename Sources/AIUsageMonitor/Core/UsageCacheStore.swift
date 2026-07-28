@@ -26,8 +26,11 @@ enum UsageCacheStore {
     }
 
     for index in states.indices {
-      states[index].status = .stale
-      states[index].message = "正在更新"
+      if states[index].status == .connected || states[index].status == .stale {
+        states[index].status = .stale
+        states[index].message = L10n.text("status.updating", "正在更新")
+        states[index].recoverySuggestion = nil
+      }
     }
     return states
   }

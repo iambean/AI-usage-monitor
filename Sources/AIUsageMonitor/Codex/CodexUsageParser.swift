@@ -3,7 +3,12 @@ import Foundation
 enum CodexUsageParser {
   static func parse(result: JSONValue, now: Date = Date()) throws -> ProviderUsageState {
     guard let root = result.objectValue else {
-      throw CodexClientError.rpc("Codex 返回了无法识别的用量数据")
+      throw CodexClientError.rpc(
+        L10n.text(
+          "error.codexInvalidUsage",
+          "Codex 返回了无法识别的用量数据"
+        )
+      )
     }
 
     let snapshots = rateLimitSnapshots(from: root)
@@ -17,7 +22,12 @@ enum CodexUsageParser {
     }
 
     guard !metrics.isEmpty else {
-      throw CodexClientError.rpc("Codex 暂未返回可用的用量窗口")
+      throw CodexClientError.rpc(
+        L10n.text(
+          "error.codexNoUsageWindow",
+          "Codex 暂未返回可用的用量窗口"
+        )
+      )
     }
 
     return ProviderUsageState(
@@ -25,9 +35,7 @@ enum CodexUsageParser {
       name: "Codex",
       symbolName: "c.circle.fill",
       status: .connected,
-      summary: metrics.min(by: {
-        ($0.value.availableFraction ?? 1) < ($1.value.availableFraction ?? 1)
-      })?.value,
+      summary: ProviderUsageState.preferredSummary(in: metrics),
       metrics: metrics,
       updatedAt: now,
       message: nil
@@ -54,9 +62,7 @@ enum CodexUsageParser {
     }
 
     current.status = .connected
-    current.summary = current.metrics.min(by: {
-      ($0.value.availableFraction ?? 1) < ($1.value.availableFraction ?? 1)
-    })?.value
+    current.summary = ProviderUsageState.preferredSummary(in: current.metrics)
     current.updatedAt = now
     current.message = nil
     return current
@@ -115,31 +121,58 @@ enum CodexUsageParser {
         label: label,
         value: .availablePercent(Double(available)),
         resetsAt: resetsAt,
-        resetDescription: nil
+        resetDescription: nil,
+        period: periodKind(for: duration, fallbackKey: windowKey)
       )
     }
   }
 
   private static func windowLabel(for durationMinutes: Int?, fallbackKey: String) -> String {
     guard let durationMinutes else {
-      return fallbackKey == "primary" ? "短期" : "周期"
+      return fallbackKey == "primary"
+        ? L10n.text("usage.shortTerm", "短期")
+        : L10n.text("usage.cycle", "周期")
     }
 
     switch durationMinutes {
     case 300:
-      return "5 小时"
+      return L10n.text("usage.fiveHours", "5 小时")
     case 10_080:
-      return "周期"
+      return L10n.text("usage.cycle", "周期")
     case 43_200:
-      return "月度"
+      return L10n.text("usage.monthly", "月度")
     default:
       if durationMinutes.isMultiple(of: 1_440) {
-        return "\(durationMinutes / 1_440) 天"
+        return L10n.format(
+          "usage.days",
+          "%d 天",
+          durationMinutes / 1_440
+        )
       }
       if durationMinutes.isMultiple(of: 60) {
-        return "\(durationMinutes / 60) 小时"
+        return L10n.format(
+          "usage.hours",
+          "%d 小时",
+          durationMinutes / 60
+        )
       }
-      return "\(durationMinutes) 分钟"
+      return L10n.format("usage.minutes", "%d 分钟", durationMinutes)
+    }
+  }
+
+  private static func periodKind(
+    for durationMinutes: Int?,
+    fallbackKey: String
+  ) -> UsagePeriodKind {
+    switch durationMinutes {
+    case 300:
+      return .fiveHour
+    case 10_080:
+      return .weekly
+    case 43_200:
+      return .monthly
+    default:
+      return fallbackKey == "secondary" ? .weekly : .other
     }
   }
 

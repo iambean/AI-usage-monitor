@@ -48,7 +48,9 @@ enum KeychainStore {
     let updateStatus = SecItemUpdate(base as CFDictionary, attributes as CFDictionary)
     if updateStatus == errSecItemNotFound {
       var insert = base
-      attributes.forEach { insert[$0.key] = $0.value }
+      for (key, value) in attributes {
+        insert[key] = value
+      }
       let status = SecItemAdd(insert as CFDictionary, nil)
       guard status == errSecSuccess else { throw KeychainError(status: status) }
     } else if updateStatus != errSecSuccess {
@@ -66,10 +68,34 @@ enum KeychainStore {
   }
 }
 
+actor KeychainAccessCoordinator {
+  static let shared = KeychainAccessCoordinator()
+
+  private var loadedSecrets: Set<ProviderSecret> = []
+  private var cachedValues: [ProviderSecret: String] = [:]
+
+  func read(_ secret: ProviderSecret) -> String? {
+    if loadedSecrets.contains(secret) {
+      return cachedValues[secret]
+    }
+    let value = KeychainStore.read(secret)
+    loadedSecrets.insert(secret)
+    cachedValues[secret] = value
+    return value
+  }
+
+  func write(_ value: String, for secret: ProviderSecret) throws {
+    try KeychainStore.write(value, for: secret)
+    loadedSecrets.insert(secret)
+    cachedValues[secret] = value.trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+}
+
 struct KeychainError: LocalizedError {
   let status: OSStatus
 
   var errorDescription: String? {
-    SecCopyErrorMessageString(status, nil) as String? ?? "无法保存凭证（\(status)）"
+    SecCopyErrorMessageString(status, nil) as String?
+      ?? L10n.format("error.keychainWrite", "无法保存凭证（%d）", status)
   }
 }

@@ -7,9 +7,14 @@ struct MenuBarContentView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       HStack {
-        Text("AI 用量")
+        Text(L10n.text("main.title", "AI 用量"))
           .font(.system(size: 13, weight: .semibold))
         Spacer()
+        if model.lowPowerModeEnabled {
+          Text(L10n.text("status.lowPowerMode", "低电量模式"))
+            .font(.system(size: 9))
+            .foregroundStyle(.tertiary)
+        }
         Text(updateText)
           .font(.system(size: 10))
           .foregroundStyle(.tertiary)
@@ -25,7 +30,7 @@ struct MenuBarContentView: View {
       }
 
       if model.providerStates.isEmpty {
-        Text("请在设置中选择要显示的数据源")
+        Text(L10n.text("main.noProviders", "请在设置中选择要显示的数据源"))
           .font(.system(size: 11))
           .foregroundStyle(.secondary)
           .padding(.vertical, 18)
@@ -36,7 +41,7 @@ struct MenuBarContentView: View {
         .padding(.bottom, 8)
 
       HStack(spacing: 6) {
-        footerButton("刷新", symbol: "arrow.clockwise") {
+        footerButton(L10n.text("common.refresh", "刷新"), symbol: "arrow.clockwise") {
           model.refresh()
         }
 
@@ -44,7 +49,7 @@ struct MenuBarContentView: View {
 
         Spacer()
 
-        Button("退出") {
+        Button(L10n.text("common.quit", "退出")) {
           model.quit()
         }
         .buttonStyle(.plain)
@@ -62,10 +67,12 @@ struct MenuBarContentView: View {
 
   private var updateText: String {
     guard let date = model.primaryState.updatedAt else {
-      return model.primaryState.status == .loading ? "连接中" : "尚未更新"
+      return model.primaryState.status == .loading
+        ? L10n.text("status.connecting", "连接中")
+        : L10n.text("status.notUpdated", "尚未更新")
     }
     guard abs(date.timeIntervalSinceNow) >= 60 else {
-      return "刚刚更新"
+      return L10n.text("status.updatedJustNow", "刚刚更新")
     }
 
     let formatter = RelativeDateTimeFormatter()
@@ -87,42 +94,15 @@ struct MenuBarContentView: View {
 
   private func openSettings() {
     SettingsWindowPresenter.live {
-      NSApp.sendAction(
-        Selector(("showSettingsWindow:")),
-        to: nil,
-        from: nil
-      )
+      SettingsWindowController.shared.show(model: model)
     }
     .present()
   }
 
-  @ViewBuilder
   private var settingsControl: some View {
-    if #available(macOS 14.0, *) {
-      FocusedSettingsButton()
-    } else {
-      footerButton("设置", symbol: "gearshape") {
-        openSettings()
-      }
+    footerButton(L10n.text("common.settings", "设置"), symbol: "gearshape") {
+      openSettings()
     }
-  }
-}
-
-@available(macOS 14.0, *)
-private struct FocusedSettingsButton: View {
-  @Environment(\.openSettings) private var openSettings
-
-  var body: some View {
-    Button {
-      SettingsWindowPresenter.live {
-        openSettings()
-      }
-      .present()
-    } label: {
-      MenuBarFooterButtonLabel(title: "设置", symbol: "gearshape")
-    }
-    .buttonStyle(.plain)
-    .foregroundStyle(.secondary)
   }
 }
 

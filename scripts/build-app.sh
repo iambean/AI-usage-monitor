@@ -27,6 +27,7 @@ cp "$executable" "$contents/MacOS/AIUsageMonitor"
 cp "$collector" "$contents/Helpers/AIUsageCollector"
 cp "$project_root/Resources/Info.plist" "$contents/Info.plist"
 cp "$project_root/Resources/ProviderIcons/"*.png "$contents/Resources/"
+cp -R "$project_root/Resources/Localizations/"*.lproj "$contents/Resources/"
 
 mkdir -p "$iconset"
 sips -z 16 16 "$icon_source" --out "$iconset/icon_16x16.png" >/dev/null

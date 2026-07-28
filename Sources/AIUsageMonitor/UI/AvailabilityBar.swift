@@ -16,7 +16,13 @@ struct AvailabilityBar: View {
       }
     }
     .frame(height: 5)
-    .accessibilityLabel("剩余 \(Int((fraction * 100).rounded()))%")
+    .accessibilityLabel(
+      L10n.format(
+        "usage.remainingPercent",
+        "剩余 %d%%",
+        Int((fraction * 100).rounded())
+      )
+    )
   }
 }
 

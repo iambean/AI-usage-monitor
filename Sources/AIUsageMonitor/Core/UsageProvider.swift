@@ -6,5 +6,6 @@ protocol UsageProvider: Actor {
   func updates() -> AsyncStream<ProviderUsageState>
   func start() async
   func refresh() async
+  func setRefreshRole(_ role: ProviderRefreshRole) async
   func stop() async
 }

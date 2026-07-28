@@ -8,14 +8,19 @@ enum HTTPUsageError: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .invalidResponse:
-      return "服务返回了无法识别的数据"
+      return L10n.text("error.invalidResponse", "服务返回了无法识别的数据")
     case .unauthorized:
-      return "凭证无效或已过期"
+      return L10n.text("error.unauthorized", "凭证无效或已过期")
     case .server(let status, let message):
       if let message, !message.isEmpty {
-        return "查询失败（HTTP \(status)）：\(message)"
+        return L10n.format(
+          "error.httpWithMessage",
+          "查询失败（HTTP %d）：%@",
+          status,
+          message
+        )
       }
-      return "查询失败（HTTP \(status)）"
+      return L10n.format("error.http", "查询失败（HTTP %d）", status)
     }
   }
 }

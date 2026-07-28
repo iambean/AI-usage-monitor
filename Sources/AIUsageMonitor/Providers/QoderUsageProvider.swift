@@ -24,10 +24,14 @@ enum QoderUsageParser {
     let response = try JSONDecoder().decode(Response.self, from: data)
     let resetDate = response.nextResetAt.flatMap(ISO8601DateFormatter().date(from:))
     let entries: [(String, String, Quota?)] = [
-      ("total", "总额度", response.totalQuota),
-      ("plan", "套餐额度", response.planQuota),
-      ("package", "资源包", response.resourcePackageQuota),
-      ("shared", "团队共享", response.sharedQuota),
+      ("total", L10n.text("usage.totalQuota", "总额度"), response.totalQuota),
+      ("plan", L10n.text("usage.planQuota", "套餐额度"), response.planQuota),
+      (
+        "package",
+        L10n.text("usage.resourcePackage", "资源包"),
+        response.resourcePackageQuota
+      ),
+      ("shared", L10n.text("usage.teamShared", "团队共享"), response.sharedQuota),
     ]
     let metrics = entries.compactMap { id, label, quota -> UsageMetric? in
       guard let summary = quota?.quotaSummary else { return nil }
@@ -52,7 +56,9 @@ enum QoderUsageParser {
       summary: summary,
       metrics: metrics,
       updatedAt: now,
-      message: response.status == "restricted" ? "已达到团队用量上限" : nil
+      message: response.status == "restricted"
+        ? L10n.text("error.teamQuotaReached", "已达到团队用量上限")
+        : nil
     )
   }
 }
@@ -62,12 +68,14 @@ enum QoderUsageProviderFactory {
     apiKey: String,
     configuration: QoderConfiguration
   ) async throws -> ProviderUsageState {
-    let organizationID = configuration.organizationID.addingPercentEncoding(
-      withAllowedCharacters: .urlPathAllowed
-    ) ?? configuration.organizationID
-    let memberID = configuration.memberID.addingPercentEncoding(
-      withAllowedCharacters: .urlPathAllowed
-    ) ?? configuration.memberID
+    let organizationID =
+      configuration.organizationID.addingPercentEncoding(
+        withAllowedCharacters: .urlPathAllowed
+      ) ?? configuration.organizationID
+    let memberID =
+      configuration.memberID.addingPercentEncoding(
+        withAllowedCharacters: .urlPathAllowed
+      ) ?? configuration.memberID
     let url = URL(
       string:
         "https://api.qoder.com/v1/organizations/\(organizationID)/members/\(memberID)/quota"

@@ -11,7 +11,7 @@ struct ProviderUsageRow: View {
           fallbackSymbolName: state.symbolName,
           size: 25
         )
-          .frame(width: 24)
+        .frame(width: 24)
 
         Text(state.name)
           .font(.system(size: 14, weight: .semibold))
@@ -19,45 +19,69 @@ struct ProviderUsageRow: View {
         Spacer(minLength: 12)
 
         VStack(alignment: .trailing, spacing: 1) {
-          Text(state.summary?.displayText ?? "—")
+          Text(visibleSummary?.displayText ?? "—")
             .font(.system(size: 18, weight: .semibold, design: .rounded))
             .monospacedDigit()
-          Text(state.summary?.caption ?? statusCaption)
+          Text(summaryCaption)
             .font(.system(size: 9))
             .foregroundStyle(.tertiary)
         }
       }
 
-      if state.metrics.isEmpty {
-        Text(state.message ?? "等待用量数据")
-          .font(.system(size: 11))
-          .foregroundStyle(.secondary)
-          .padding(.leading, 34)
+      if !canShowUsage || state.metrics.isEmpty {
+        VStack(alignment: .leading, spacing: 5) {
+          Text(state.message ?? L10n.text("status.waitingForUsage", "等待用量数据"))
+            .foregroundStyle(.secondary)
+          if let recoverySuggestion = state.recoverySuggestion {
+            Text(recoverySuggestion)
+              .foregroundStyle(.tertiary)
+          }
+        }
+        .font(.system(size: 10))
+        .padding(.leading, 34)
       } else {
-        VStack(spacing: 7) {
-          ForEach(state.metrics) { metric in
-            HStack(alignment: .firstTextBaseline) {
-              VStack(alignment: .leading, spacing: 1) {
-                Text(metric.label)
-                  .foregroundStyle(.secondary)
-                if let resetText = resetText(metric) {
-                  Text(resetText)
-                    .font(.system(size: 9))
-                    .foregroundStyle(.tertiary)
-                }
-              }
-              Spacer()
+        LazyVGrid(
+          columns: [
+            GridItem(.flexible(), spacing: 8),
+            GridItem(.flexible(), spacing: 8),
+          ],
+          alignment: .leading,
+          spacing: 8
+        ) {
+          ForEach(state.displayMetrics) { metric in
+            VStack(alignment: .leading, spacing: 3) {
+              Text(metric.label)
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+
               Text(metric.value.displayText)
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
                 .foregroundStyle(.primary)
                 .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
+              if let resetText = resetText(metric) {
+                Text(resetText)
+                  .font(.system(size: 9))
+                  .foregroundStyle(.tertiary)
+                  .lineLimit(1)
+                  .minimumScaleFactor(0.75)
+              }
             }
-            .font(.system(size: 11))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(8)
+            .background(
+              RoundedRectangle(cornerRadius: 7)
+                .fill(Color.primary.opacity(0.045))
+            )
           }
         }
         .padding(.leading, 34)
       }
 
-      if let fraction = state.summary?.availableFraction {
+      if let fraction = visibleSummary?.availableFraction {
         AvailabilityBar(fraction: fraction)
       }
     }
@@ -67,16 +91,32 @@ struct ProviderUsageRow: View {
   private var statusCaption: String {
     switch state.status {
     case .loading:
-      return "连接中"
+      return L10n.text("status.connecting", "连接中")
     case .needsConfiguration:
-      return "待配置"
+      return L10n.text("status.needsConfiguration", "待配置")
     case .stale:
-      return "上次数据"
+      return L10n.text("status.lastData", "上次数据")
     case .error:
-      return "不可用"
+      return L10n.text("status.unavailable", "不可用")
     case .connected:
-      return "用量"
+      return L10n.text("status.usage", "用量")
     }
+  }
+
+  private var summaryCaption: String {
+    visibleSummary == nil
+      ? statusCaption
+      : state.status == .connected
+        ? visibleSummary?.caption ?? statusCaption
+        : statusCaption
+  }
+
+  private var visibleSummary: UsageValue? {
+    canShowUsage ? state.defaultSummary : nil
+  }
+
+  private var canShowUsage: Bool {
+    state.status == .connected || state.status == .stale
   }
 
   private func resetText(_ metric: UsageMetric) -> String? {
@@ -84,9 +124,10 @@ struct ProviderUsageRow: View {
       return description
     }
     guard let date = metric.resetsAt else { return nil }
-    let formatter = RelativeDateTimeFormatter()
-    formatter.locale = Locale(identifier: "zh_CN")
-    formatter.unitsStyle = .short
-    return formatter.localizedString(for: date, relativeTo: Date()) + "重置"
+    return L10n.format(
+      "usage.resetsAt",
+      "%@重置",
+      UsageResetFormatter.dateTime(for: date)
+    )
   }
 }

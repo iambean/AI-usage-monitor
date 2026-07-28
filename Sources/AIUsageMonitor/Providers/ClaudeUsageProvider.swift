@@ -8,11 +8,20 @@ enum ClaudeUsageError: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .waitingForData:
-      return "采集已启用；使用一次 Claude Code 后会显示用量"
+      return L10n.text(
+        "error.claudeWaiting",
+        "采集已启用；使用一次 Claude Code 后会显示用量"
+      )
     case .statusLineConflict:
-      return "Claude Code 已有状态栏配置，为避免覆盖暂未接入"
+      return L10n.text(
+        "error.claudeStatusLineConflict",
+        "Claude Code 已有状态栏配置，为避免覆盖暂未接入"
+      )
     case .helperMissing:
-      return "应用内缺少 Claude 用量采集组件"
+      return L10n.text(
+        "error.claudeHelperMissing",
+        "应用内缺少 Claude 用量采集组件"
+      )
     }
   }
 }
@@ -67,24 +76,33 @@ enum ClaudeUsageParser {
     let input = try decoder.decode(Input.self, from: data)
     guard let rateLimits = input.rateLimits else { throw ClaudeUsageError.waitingForData }
 
-    let entries: [(String, String, Window?)] = [
-      ("5h", "5 小时", rateLimits.fiveHour),
-      ("weekly", "周期", rateLimits.sevenDay),
+    let entries: [(String, String, UsagePeriodKind, Window?)] = [
+      (
+        "5h",
+        L10n.text("usage.fiveHours", "5 小时"),
+        .fiveHour,
+        rateLimits.fiveHour
+      ),
+      (
+        "weekly",
+        L10n.text("usage.cycle", "周期"),
+        .weekly,
+        rateLimits.sevenDay
+      ),
     ]
-    let metrics = entries.compactMap { id, label, window -> UsageMetric? in
+    let metrics = entries.compactMap { id, label, period, window -> UsageMetric? in
       guard let window else { return nil }
       return UsageMetric(
         id: "claude.\(id)",
         label: label,
         value: .availablePercent(100 - window.usedPercentage),
         resetsAt: window.resetsAt,
-        resetDescription: nil
+        resetDescription: nil,
+        period: period
       )
     }
     guard !metrics.isEmpty else { throw ClaudeUsageError.waitingForData }
-    let summary = metrics.min(by: {
-      ($0.value.availableFraction ?? 1) < ($1.value.availableFraction ?? 1)
-    })?.value
+    let summary = ProviderUsageState.preferredSummary(in: metrics)
 
     return ProviderUsageState(
       id: .claude,

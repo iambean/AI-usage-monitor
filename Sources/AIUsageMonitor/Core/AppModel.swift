@@ -11,11 +11,20 @@ final class AppModel: ObservableObject {
   @Published private(set) var detectedExecutablePaths: [ProviderID: String]
   @Published private(set) var configurationMessages: [ProviderID: String] = [:]
   @Published private(set) var testingProviderID: ProviderID?
+  @Published private(set) var lowPowerModeEnabled: Bool
+  @Published private(set) var diagnosticsMessage: String?
+  @Published private(set) var updateStatus = AppUpdateStatus.idle
+  @Published private(set) var credentialAvailability: [ProviderID: Bool] = [:]
 
   private var providers: [ProviderID: any UsageProvider] = [:]
+  private let updateChecker = UpdateChecker()
   private var updateTasks: [ProviderID: Task<Void, Never>] = [:]
   private var startTasks: [ProviderID: Task<Void, Never>] = [:]
+  private var connectionGenerations: [ProviderID: UUID] = [:]
+  private var powerStateObserver: NSObjectProtocol?
+  private var wakeObserver: NSObjectProtocol?
   private var hasStarted = false
+  private var isShuttingDown = false
 
   init() {
     let enabled = ProviderSettingsStore.enabledProviderIDs()
@@ -26,11 +35,42 @@ final class AppModel: ObservableObject {
     }
     launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
     detectedExecutablePaths = Self.detectExecutables()
+    lowPowerModeEnabled = ProcessInfo.processInfo.isLowPowerModeEnabled
+
+    powerStateObserver = NotificationCenter.default.addObserver(
+      forName: Notification.Name.NSProcessInfoPowerStateDidChange,
+      object: nil,
+      queue: .main
+    ) { [weak self] _ in
+      Task { @MainActor in
+        self?.updatePowerState()
+      }
+    }
+    wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+      forName: NSWorkspace.didWakeNotification,
+      object: nil,
+      queue: .main
+    ) { [weak self] _ in
+      Task { @MainActor in
+        self?.refreshPrimary()
+      }
+    }
+    refreshCredentialAvailability()
   }
 
   deinit {
-    startTasks.values.forEach { $0.cancel() }
-    updateTasks.values.forEach { $0.cancel() }
+    if let powerStateObserver {
+      NotificationCenter.default.removeObserver(powerStateObserver)
+    }
+    if let wakeObserver {
+      NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
+    }
+    for task in startTasks.values {
+      task.cancel()
+    }
+    for task in updateTasks.values {
+      task.cancel()
+    }
   }
 
   var primaryState: ProviderUsageState {
@@ -41,18 +81,18 @@ final class AppModel: ObservableObject {
     ProviderSettingsStore.qoderConfiguration()
   }
 
+  var miniMaxRegion: MiniMaxRegion {
+    ProviderSettingsStore.miniMaxRegion()
+  }
+
   func isProviderEnabled(_ id: ProviderID) -> Bool {
     enabledProviderIDs.contains(id)
   }
 
   func hasCredential(_ id: ProviderID) -> Bool {
     switch id {
-    case .minimax:
-      return KeychainStore.read(.minimaxAPIKey) != nil
-    case .deepseek:
-      return KeychainStore.read(.deepseekAPIKey) != nil
-    case .qoder:
-      return KeychainStore.read(.qoderAPIKey) != nil
+    case .minimax, .deepseek, .qoder:
+      return credentialAvailability[id] ?? false
     default:
       return true
     }
@@ -68,6 +108,7 @@ final class AppModel: ObservableObject {
     for id in enabledProviderIDs {
       connect(id)
     }
+    checkForUpdates(manual: false)
   }
 
   func refresh() {
@@ -79,6 +120,10 @@ final class AppModel: ObservableObject {
         }
       }
     }
+  }
+
+  func panelDidOpen() {
+    refresh()
   }
 
   func redetectExecutables() {
@@ -100,7 +145,10 @@ final class AppModel: ObservableObject {
         do {
           try ClaudeStatusLineInstaller.install()
         } catch {
-          configurationMessages[id] = error.localizedDescription
+          configurationMessages[id] = configurationFailureMessage(
+            error,
+            providerID: id
+          )
           return
         }
       }
@@ -112,6 +160,7 @@ final class AppModel: ObservableObject {
       if hasStarted {
         connect(id)
       }
+      applyRefreshRoles()
     } else {
       enabledProviderIDs.removeAll(where: { $0 == id })
       ProviderSettingsStore.setEnabledProviderIDs(enabledProviderIDs)
@@ -122,6 +171,7 @@ final class AppModel: ObservableObject {
         ClaudeStatusLineInstaller.uninstallIfOwned()
       }
       UsageCacheStore.save(providerStates)
+      applyRefreshRoles()
     }
   }
 
@@ -129,27 +179,46 @@ final class AppModel: ObservableObject {
     providerID: ProviderID,
     apiKey: String,
     organizationID: String = "",
-    memberID: String = ""
+    memberID: String = "",
+    miniMaxRegion: MiniMaxRegion = .automatic
   ) {
     guard testingProviderID == nil else { return }
     let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmedKey.isEmpty else {
-      configurationMessages[providerID] = "请输入 API Key"
+      configurationMessages[providerID] = L10n.text(
+        "error.enterAPIKey",
+        "请输入 API Key"
+      )
       return
     }
 
     testingProviderID = providerID
-    configurationMessages[providerID] = "正在测试连接"
+    configurationMessages[providerID] = L10n.text(
+      "status.testingConnection",
+      "正在测试连接"
+    )
     Task {
       do {
         let state: ProviderUsageState
         switch providerID {
         case .minimax:
-          state = try await MiniMaxUsageProviderFactory.fetch(apiKey: trimmedKey)
-          try KeychainStore.write(trimmedKey, for: .minimaxAPIKey)
+          state = try await MiniMaxUsageProviderFactory.fetch(
+            apiKey: trimmedKey,
+            region: miniMaxRegion
+          )
+          try await KeychainAccessCoordinator.shared.write(
+            trimmedKey,
+            for: .minimaxAPIKey
+          )
+          credentialAvailability[providerID] = true
+          ProviderSettingsStore.setMiniMaxRegion(miniMaxRegion)
         case .deepseek:
           state = try await DeepSeekUsageProviderFactory.fetch(apiKey: trimmedKey)
-          try KeychainStore.write(trimmedKey, for: .deepseekAPIKey)
+          try await KeychainAccessCoordinator.shared.write(
+            trimmedKey,
+            for: .deepseekAPIKey
+          )
+          credentialAvailability[providerID] = true
         case .qoder:
           let configuration = QoderConfiguration(
             organizationID: organizationID.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -162,13 +231,20 @@ final class AppModel: ObservableObject {
             apiKey: trimmedKey,
             configuration: configuration
           )
-          try KeychainStore.write(trimmedKey, for: .qoderAPIKey)
+          try await KeychainAccessCoordinator.shared.write(
+            trimmedKey,
+            for: .qoderAPIKey
+          )
+          credentialAvailability[providerID] = true
           ProviderSettingsStore.setQoderConfiguration(configuration)
         default:
           throw ConfigurationError.unsupported
         }
 
-        configurationMessages[providerID] = "连接正常，配置已保存"
+        configurationMessages[providerID] = L10n.text(
+          "status.configurationSaved",
+          "连接正常，配置已保存"
+        )
         testingProviderID = nil
         if !isProviderEnabled(providerID) {
           setProviderEnabled(providerID, enabled: true)
@@ -179,7 +255,10 @@ final class AppModel: ObservableObject {
         }
       } catch {
         testingProviderID = nil
-        configurationMessages[providerID] = error.localizedDescription
+        configurationMessages[providerID] = configurationFailureMessage(
+          error,
+          providerID: providerID
+        )
       }
     }
   }
@@ -203,48 +282,223 @@ final class AppModel: ObservableObject {
     NSApplication.shared.terminate(nil)
   }
 
-  private func connect(_ id: ProviderID) {
-    stop(id)
-
+  func exportDiagnostics() {
+    diagnosticsMessage = nil
     do {
-      let provider = try makeProvider(id)
-      providers[id] = provider
+      guard
+        let url = try DiagnosticsExporter.export(
+          states: providerStates,
+          enabledProviderIDs: enabledProviderIDs,
+          lowPowerModeEnabled: lowPowerModeEnabled
+        )
+      else {
+        return
+      }
+      diagnosticsMessage = L10n.format(
+        "diagnostics.exported",
+        "诊断包已导出到 %@",
+        url.lastPathComponent
+      )
+      DiagnosticLog.record("diagnostics_exported")
+    } catch {
+      diagnosticsMessage = error.localizedDescription
+      DiagnosticLog.record("diagnostics_export_failed")
+    }
+  }
 
-      var loading = state(for: id) ?? .loading(id)
-      loading.status = loading.summary == nil ? .loading : .stale
-      loading.message = "正在更新"
-      accept(loading)
+  func checkForUpdates(manual: Bool = true) {
+    guard updateStatus != .checking else { return }
+    if manual {
+      updateStatus = .checking
+    }
+    let currentVersion =
+      Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString")
+      as? String ?? "0.0.0"
+    Task {
+      do {
+        let result = try await updateChecker.check(
+          currentVersion: currentVersion,
+          force: manual
+        )
+        switch result {
+        case .skipped:
+          if manual {
+            updateStatus = .upToDate
+          }
+        case .upToDate:
+          updateStatus = .upToDate
+        case .available(let version, let url):
+          updateStatus = .available(version: version, url: url)
+        }
+      } catch {
+        if manual {
+          updateStatus = .failed
+        }
+        DiagnosticLog.record("update_check_failed")
+      }
+    }
+  }
 
-      startTasks[id] = Task {
+  func openAvailableUpdate() {
+    guard case .available(_, let url) = updateStatus else { return }
+    NSWorkspace.shared.open(url)
+  }
+
+  func shutdown() async {
+    guard !isShuttingDown else { return }
+    isShuttingDown = true
+    hasStarted = false
+
+    for task in startTasks.values {
+      task.cancel()
+    }
+    for task in updateTasks.values {
+      task.cancel()
+    }
+    startTasks.removeAll()
+    updateTasks.removeAll()
+    connectionGenerations.removeAll()
+
+    let activeProviders = Array(providers.values)
+    providers.removeAll()
+    await withTaskGroup(of: Void.self) { group in
+      for provider in activeProviders {
+        group.addTask {
+          await provider.stop()
+        }
+      }
+    }
+  }
+
+  private func connect(_ id: ProviderID) {
+    let previousProvider = detach(id)
+    let generation = UUID()
+    connectionGenerations[id] = generation
+    let refreshRole = refreshRole(for: id)
+
+    var loading = state(for: id) ?? .loading(id)
+    loading.status = loading.defaultSummary == nil ? .loading : .stale
+    loading.message = L10n.text("status.updating", "正在更新")
+    loading.recoverySuggestion = nil
+    accept(loading)
+
+    startTasks[id] = Task { @MainActor [weak self] in
+      if let previousProvider {
+        await previousProvider.stop()
+      }
+      guard let self, !Task.isCancelled,
+        connectionGenerations[id] == generation
+      else {
+        return
+      }
+
+      do {
+        let provider = try await makeProvider(id)
+        guard !Task.isCancelled, connectionGenerations[id] == generation else {
+          await provider.stop()
+          return
+        }
+        providers[id] = provider
+        await provider.setRefreshRole(refreshRole)
         let stream = await provider.updates()
+        guard connectionGenerations[id] == generation else {
+          await provider.stop()
+          return
+        }
         updateTasks[id] = Task { @MainActor [weak self] in
           for await state in stream {
             guard !Task.isCancelled else { return }
+            guard self?.connectionGenerations[id] == generation else { return }
             self?.accept(state)
           }
         }
         await provider.start()
+      } catch {
+        guard connectionGenerations[id] == generation else { return }
+        let status: ProviderConnectionStatus =
+          error is ConfigurationError ? .needsConfiguration : .error
+        let state = (state(for: id) ?? .loading(id)).failed(
+          status: status,
+          message: error.localizedDescription,
+          recoverySuggestion: ProviderRecoverySuggestion.text(
+            for: error,
+            providerID: id
+          )
+        )
+        accept(state)
       }
-    } catch {
-      var state = state(for: id) ?? .loading(id)
-      state.status =
-        error is ConfigurationError ? .needsConfiguration : .error
-      state.message = error.localizedDescription
-      accept(state)
     }
   }
 
   private func stop(_ id: ProviderID) {
+    guard let provider = detach(id) else { return }
+    Task {
+      await provider.stop()
+    }
+  }
+
+  private func detach(_ id: ProviderID) -> (any UsageProvider)? {
     startTasks[id]?.cancel()
     updateTasks[id]?.cancel()
     startTasks[id] = nil
     updateTasks[id] = nil
-    if let provider = providers.removeValue(forKey: id) {
-      Task { await provider.stop() }
+    connectionGenerations[id] = nil
+    return providers.removeValue(forKey: id)
+  }
+
+  private func updatePowerState() {
+    let enabled = ProcessInfo.processInfo.isLowPowerModeEnabled
+    guard lowPowerModeEnabled != enabled else { return }
+    lowPowerModeEnabled = enabled
+    DiagnosticLog.record(
+      "power_mode_changed",
+      fields: ["low_power": enabled ? "true" : "false"]
+    )
+    applyRefreshRoles()
+    if !enabled {
+      refreshPrimary()
     }
   }
 
-  private func makeProvider(_ id: ProviderID) throws -> any UsageProvider {
+  private func refreshPrimary() {
+    guard
+      let primaryID = enabledProviderIDs.first,
+      let provider = providers[primaryID]
+    else {
+      return
+    }
+    Task {
+      await provider.refresh()
+    }
+  }
+
+  private func applyRefreshRoles() {
+    for (id, provider) in providers {
+      let role = refreshRole(for: id)
+      Task {
+        await provider.setRefreshRole(role)
+      }
+    }
+  }
+
+  private func refreshRole(for id: ProviderID) -> ProviderRefreshRole {
+    if id == enabledProviderIDs.first {
+      return lowPowerModeEnabled ? .lowPowerPrimary : .primary
+    }
+    return lowPowerModeEnabled ? .suspended : .secondary
+  }
+
+  private func configurationFailureMessage(
+    _ error: Error,
+    providerID: ProviderID
+  ) -> String {
+    [
+      error.localizedDescription,
+      ProviderRecoverySuggestion.text(for: error, providerID: providerID),
+    ].joined(separator: "\n")
+  }
+
+  private func makeProvider(_ id: ProviderID) async throws -> any UsageProvider {
     switch id {
     case .codex:
       guard let path = detectedExecutablePaths[.codex] else {
@@ -263,17 +517,26 @@ final class AppModel: ObservableObject {
       }
       return KimiUsageProviderFactory.make()
     case .minimax:
-      guard let key = KeychainStore.read(.minimaxAPIKey) else {
+      let key = await KeychainAccessCoordinator.shared.read(.minimaxAPIKey)
+      credentialAvailability[id] = key != nil
+      guard let key else {
         throw ConfigurationError.apiKeyRequired
       }
-      return MiniMaxUsageProviderFactory.make(apiKey: key)
+      return MiniMaxUsageProviderFactory.make(
+        apiKey: key,
+        region: ProviderSettingsStore.miniMaxRegion()
+      )
     case .deepseek:
-      guard let key = KeychainStore.read(.deepseekAPIKey) else {
+      let key = await KeychainAccessCoordinator.shared.read(.deepseekAPIKey)
+      credentialAvailability[id] = key != nil
+      guard let key else {
         throw ConfigurationError.apiKeyRequired
       }
       return DeepSeekUsageProviderFactory.make(apiKey: key)
     case .qoder:
-      guard let key = KeychainStore.read(.qoderAPIKey) else {
+      let key = await KeychainAccessCoordinator.shared.read(.qoderAPIKey)
+      credentialAvailability[id] = key != nil
+      guard let key else {
         throw ConfigurationError.apiKeyRequired
       }
       let configuration = ProviderSettingsStore.qoderConfiguration()
@@ -295,6 +558,14 @@ final class AppModel: ObservableObject {
     }
     orderStates()
     UsageCacheStore.save(providerStates)
+    DiagnosticLog.record(
+      "provider_state",
+      providerID: state.id,
+      fields: [
+        "metrics": String(state.metrics.count),
+        "status": state.status.rawValue,
+      ]
+    )
   }
 
   private func orderEnabledProviders() {
@@ -307,6 +578,21 @@ final class AppModel: ObservableObject {
   private func orderStates() {
     providerStates.sort {
       enabledProviderIDs.firstIndex(of: $0.id)! < enabledProviderIDs.firstIndex(of: $1.id)!
+    }
+  }
+
+  private func refreshCredentialAvailability() {
+    Task { @MainActor [weak self] in
+      let credentials: [(ProviderID, ProviderSecret)] = [
+        (.minimax, .minimaxAPIKey),
+        (.deepseek, .deepseekAPIKey),
+        (.qoder, .qoderAPIKey),
+      ]
+      for (providerID, secret) in credentials {
+        guard let self else { return }
+        let value = await KeychainAccessCoordinator.shared.read(secret)
+        credentialAvailability[providerID] = value != nil
+      }
     }
   }
 
@@ -334,13 +620,16 @@ enum ConfigurationError: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .apiKeyRequired:
-      return "需要先配置 API Key"
+      return L10n.text("error.apiKeyRequired", "需要先配置 API Key")
     case .missingQoderIDs:
-      return "请填写 Organization ID 和 Member ID"
+      return L10n.text(
+        "error.qoderIDsRequired",
+        "请填写 Organization ID 和 Member ID"
+      )
     case .executableNotFound(let name):
-      return "未自动找到 \(name)"
+      return L10n.format("error.executableNotFound", "未自动找到 %@", name)
     case .unsupported:
-      return "该数据源暂不可用"
+      return L10n.text("error.providerUnavailable", "该数据源暂不可用")
     }
   }
 }

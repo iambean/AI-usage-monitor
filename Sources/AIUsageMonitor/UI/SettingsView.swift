@@ -6,7 +6,7 @@ struct SettingsView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 18) {
-      Text("AI 用量设置")
+      Text(L10n.text("settings.title", "AI 用量设置"))
         .font(.system(size: 20, weight: .semibold))
 
       VStack(spacing: 0) {
@@ -25,15 +25,20 @@ struct SettingsView: View {
       )
 
       HStack {
-        Button("重新检测本机工具") {
+        Button(L10n.text("settings.redetect", "重新检测本机工具")) {
           model.redetectExecutables()
+        }
+        .buttonStyle(.link)
+
+        Button(L10n.text("diagnostics.export", "导出诊断")) {
+          model.exportDiagnostics()
         }
         .buttonStyle(.link)
 
         Spacer()
 
         Toggle(
-          "登录时启动",
+          L10n.text("settings.launchAtLogin", "登录时启动"),
           isOn: Binding(
             get: { model.launchAtLoginEnabled },
             set: { model.setLaunchAtLogin($0) }
@@ -46,6 +51,36 @@ struct SettingsView: View {
         Text(error)
           .font(.system(size: 10))
           .foregroundStyle(.secondary)
+      }
+
+      if let message = model.diagnosticsMessage {
+        Text(message)
+          .font(.system(size: 10))
+          .foregroundStyle(.secondary)
+      }
+
+      HStack(spacing: 8) {
+        Text(L10n.text("update.title", "软件更新"))
+          .font(.system(size: 11, weight: .medium))
+
+        Text(updateStatusText)
+          .font(.system(size: 10))
+          .foregroundStyle(.secondary)
+
+        Spacer()
+
+        if case .available = model.updateStatus {
+          Button(L10n.text("update.download", "前往下载")) {
+            model.openAvailableUpdate()
+          }
+          .buttonStyle(.link)
+        }
+
+        Button(L10n.text("update.check", "检查更新")) {
+          model.checkForUpdates()
+        }
+        .buttonStyle(.link)
+        .disabled(model.updateStatus == .checking)
       }
     }
     .padding(24)
@@ -73,15 +108,15 @@ struct SettingsView: View {
         fallbackSymbolName: metadata.symbolName,
         size: 23
       )
-        .frame(width: 22)
-        .opacity(isAvailable(metadata) ? 1 : 0.35)
+      .frame(width: 22)
+      .opacity(isAvailable(metadata) ? 1 : 0.35)
 
       VStack(alignment: .leading, spacing: 2) {
         HStack(spacing: 6) {
           Text(metadata.name)
             .font(.system(size: 12, weight: .semibold))
           if case .unavailable = metadata.availability {
-            Text("暂不可用")
+            Text(L10n.text("status.temporarilyUnavailable", "暂不可用"))
               .font(.system(size: 9, weight: .medium))
               .foregroundStyle(.secondary)
               .padding(.horizontal, 5)
@@ -98,7 +133,11 @@ struct SettingsView: View {
       Spacer()
 
       if metadata.configurationKind != .automatic, isAvailable(metadata) {
-        Button(model.hasCredential(metadata.id) ? "配置" : "填写") {
+        Button(
+          model.hasCredential(metadata.id)
+            ? L10n.text("common.configure", "配置")
+            : L10n.text("common.enter", "填写")
+        ) {
           configurationProvider = metadata.id
         }
         .buttonStyle(.link)
@@ -133,12 +172,16 @@ struct SettingsView: View {
       return message
     }
     if let path = model.detectedExecutablePaths[metadata.id] {
-      return "已自动找到 · \(URL(fileURLWithPath: path).lastPathComponent)"
+      return L10n.format(
+        "settings.detectedTool",
+        "已自动找到 · %@",
+        URL(fileURLWithPath: path).lastPathComponent
+      )
     }
     if metadata.configurationKind == .automatic,
       [.codex, .claude, .kimi].contains(metadata.id)
     {
-      return "未自动找到"
+      return L10n.text("settings.toolNotFound", "未自动找到")
     }
     if let state = model.state(for: metadata.id), let message = state.message {
       return message
@@ -150,6 +193,21 @@ struct SettingsView: View {
     if case .available = metadata.availability { return true }
     return false
   }
+
+  private var updateStatusText: String {
+    switch model.updateStatus {
+    case .idle:
+      return L10n.text("update.notChecked", "尚未检查")
+    case .checking:
+      return L10n.text("update.checking", "正在检查")
+    case .upToDate:
+      return L10n.text("update.upToDate", "已是最新版本")
+    case .available(let version, _):
+      return L10n.format("update.available", "发现新版本 %@", version)
+    case .failed:
+      return L10n.text("update.checkFailed", "检查更新失败")
+    }
+  }
 }
 
 private struct ProviderConfigurationView: View {
@@ -160,14 +218,32 @@ private struct ProviderConfigurationView: View {
   @State private var apiKey = ""
   @State private var organizationID = ""
   @State private var memberID = ""
+  @State private var miniMaxRegion = MiniMaxRegion.automatic
 
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
-      Text("配置 \(ProviderCatalog.metadata(for: providerID).name)")
-        .font(.system(size: 17, weight: .semibold))
+      Text(
+        L10n.format(
+          "settings.configureProvider",
+          "配置 %@",
+          ProviderCatalog.metadata(for: providerID).name
+        )
+      )
+      .font(.system(size: 17, weight: .semibold))
 
       SecureField("API Key", text: $apiKey)
         .textFieldStyle(.roundedBorder)
+
+      if providerID == .minimax {
+        Picker(
+          L10n.text("settings.serviceRegion", "服务区域"),
+          selection: $miniMaxRegion
+        ) {
+          ForEach(MiniMaxRegion.allCases, id: \.self) { region in
+            Text(region.title).tag(region)
+          }
+        }
+      }
 
       if providerID == .qoder {
         TextField("Organization ID", text: $organizationID)
@@ -176,9 +252,14 @@ private struct ProviderConfigurationView: View {
           .textFieldStyle(.roundedBorder)
       }
 
-      Text("凭证仅保存在本机 macOS 钥匙串；测试成功后才会保存。")
-        .font(.system(size: 10))
-        .foregroundStyle(.secondary)
+      Text(
+        L10n.text(
+          "settings.credentialNotice",
+          "凭证仅保存在本机 macOS 钥匙串；测试成功后才会保存。"
+        )
+      )
+      .font(.system(size: 10))
+      .foregroundStyle(.secondary)
 
       if let message = model.configurationMessages[providerID] {
         Text(message)
@@ -187,14 +268,15 @@ private struct ProviderConfigurationView: View {
       }
 
       HStack {
-        Button("取消", action: onClose)
+        Button(L10n.text("common.cancel", "取消"), action: onClose)
         Spacer()
-        Button("保存并测试") {
+        Button(L10n.text("settings.saveAndTest", "保存并测试")) {
           model.testAndSaveAPIConfiguration(
             providerID: providerID,
             apiKey: apiKey,
             organizationID: organizationID,
-            memberID: memberID
+            memberID: memberID,
+            miniMaxRegion: miniMaxRegion
           )
         }
         .keyboardShortcut(.defaultAction)
@@ -207,6 +289,9 @@ private struct ProviderConfigurationView: View {
       if providerID == .qoder {
         organizationID = model.qoderConfiguration.organizationID
         memberID = model.qoderConfiguration.memberID
+      }
+      if providerID == .minimax {
+        miniMaxRegion = model.miniMaxRegion
       }
     }
   }

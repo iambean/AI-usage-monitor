@@ -8,6 +8,10 @@ usage windows, or account balance of AI coding services.
 Codex is enabled by default. Additional providers can be enabled from Settings,
 and the menu bar always shows a compact summary for the first enabled provider.
 
+> [!NOTE]
+> **AI Usage is macOS only.** It supports macOS 13 and later on Apple Silicon
+> and Intel Macs. Windows support is not currently planned.
+
 > [!IMPORTANT]
 > AI Usage is an independent, unofficial community project. It is not affiliated
 > with, endorsed by, or sponsored by any provider listed below.
@@ -16,9 +20,16 @@ and the menu bar always shows a compact summary for the first enabled provider.
 
 - Native SwiftUI menu bar experience for macOS 13 and later
 - Compact always-visible usage summary with detailed expandable rows
+- Five-hour quota is preferred in the menu bar; the panel shows each usage window and its exact reset time
+- The main panel and Settings follow the normal macOS window stacking behavior
+- Simplified Chinese and English UI, with Chinese as the default fallback
 - Automatic discovery of locally installed Codex, Claude Code, and Kimi Code
 - Credentials for API-based providers stored in the macOS Keychain
-- Provider-specific refresh intervals to avoid unnecessary polling
+- Primary-provider polling with hourly secondary refreshes and immediate refresh when the panel opens
+- Automatic polling reduction when macOS Low Power Mode is active
+- Clear unavailable states and recovery suggestions instead of stale cached values after an error
+- Local, redacted diagnostics export with no third-party telemetry
+- Lightweight GitHub Releases update check, limited to once per day in the background
 - Optional launch at login
 - Universal build for Apple Silicon and Intel Macs
 - No project-operated proxy, analytics service, or telemetry backend
@@ -38,6 +49,26 @@ and the menu bar always shows a compact summary for the first enabled provider.
 Provider APIs and local CLI formats can change without notice. “Available”
 means the integration is implemented in this project; it is not a guarantee of
 permanent upstream compatibility.
+
+## Resource and reliability
+
+- Keep the primary menu bar provider current; refresh secondary providers less
+  often in the background and refresh all providers when the panel opens.
+- Reduce background polling automatically when macOS Low Power Mode is active,
+  while preserving manual refresh.
+- Treat 35 MB for the idle app and 50 MB including the Codex App Server as
+  resource budgets. Investigate only after three consecutive measurements
+  exceed a budget.
+- Keep one Codex App Server process while Codex is enabled, with cleanup,
+  duplicate-process prevention, and backoff after unexpected exits.
+- Never present stale cached values as a successful refresh. Show a clear
+  unavailable state and a provider-specific recovery suggestion instead.
+- Prefer official APIs; integrations that depend on local CLI sessions are
+  labeled accordingly, while unverified integrations remain unavailable.
+- Remain telemetry-free. Diagnostics are local, redacted, and exported only
+  when the user explicitly requests them.
+- Distribute public builds through signed and notarized GitHub Releases, with
+  a lightweight version check rather than a background auto-update framework.
 
 ## Installation
 
@@ -92,11 +123,13 @@ AI_USAGE_NOTARY_PROFILE="notary-profile" \
   `statusLine` command to `~/.claude/settings.json`. Existing unrelated
   `statusLine` configurations are not overwritten. Disabling the provider
   removes only the configuration owned by AI Usage.
-- **Kimi Code:** the app locates the `kimi` executable and reads the Kimi Code
-  login session stored on the Mac.
-- **MiniMax, DeepSeek, and Qoder:** secret keys are stored in the macOS
-  Keychain. Non-secret provider settings are stored in the app's local
-  preferences.
+- **Kimi Code:** the app locates the `kimi` executable, reads the Kimi Code
+  login session stored on the Mac, and refreshes its short-lived access token
+  when necessary.
+- **MiniMax:** choose automatic, Global, or Mainland China service-region
+  detection. The Token Plan key is stored in the macOS Keychain.
+- **DeepSeek and Qoder:** secret keys are stored in the macOS Keychain.
+  Non-secret provider settings are stored in the app's local preferences.
 - **Launch at login:** managed through the macOS Service Management framework.
 
 ## Privacy and security
@@ -112,18 +145,6 @@ AI_USAGE_NOTARY_PROFILE="notary-profile" \
 
 Each provider still processes requests under its own privacy policy and terms.
 Review the provider's policies before enabling an integration.
-
-## Development approach: vibecoding
-
-This is openly disclosed as a **vibecoding project**. The product direction,
-interaction decisions, reviews, and release acceptance are led by the human
-maintainer, while a substantial portion of the implementation and
-documentation is drafted and iterated with AI coding agents, primarily Codex.
-
-AI-assisted development does not guarantee correctness. Automated tests,
-manual review, and real-device verification are used where practical, but
-contributors and users should still review security-sensitive behavior and
-report issues.
 
 ## Contributing
 

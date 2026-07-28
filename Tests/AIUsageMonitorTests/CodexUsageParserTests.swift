@@ -3,7 +3,7 @@ import XCTest
 @testable import AIUsageMonitor
 
 final class CodexUsageParserTests: XCTestCase {
-  func testParsesAvailablePercentAndUsesMostConstrainedWindowAsSummary() throws {
+  func testUsesFiveHourWindowAsDefaultSummaryWhenWeeklyWindowAlsoExists() throws {
     let result: JSONValue = .object([
       "rateLimits": .object([
         "limitId": .string("codex"),
@@ -22,7 +22,7 @@ final class CodexUsageParserTests: XCTestCase {
 
     let state = try CodexUsageParser.parse(result: result)
 
-    XCTAssertEqual(state.summary, .availablePercent(38))
+    XCTAssertEqual(state.summary, .availablePercent(65))
     XCTAssertEqual(
       state.metrics,
       [
@@ -31,17 +31,36 @@ final class CodexUsageParserTests: XCTestCase {
           label: "5 小时",
           value: .availablePercent(65),
           resetsAt: Date(timeIntervalSince1970: 2_000_000_000),
-          resetDescription: nil
+          resetDescription: nil,
+          period: .fiveHour
         ),
         UsageMetric(
           id: "codex.secondary",
           label: "周期",
           value: .availablePercent(38),
           resetsAt: Date(timeIntervalSince1970: 2_000_100_000),
-          resetDescription: nil
+          resetDescription: nil,
+          period: .weekly
         ),
       ]
     )
+  }
+
+  func testUsesWeeklyWindowWhenItIsTheOnlyAvailableWindow() throws {
+    let result: JSONValue = .object([
+      "rateLimits": .object([
+        "limitId": .string("codex"),
+        "secondary": .object([
+          "usedPercent": .number(31),
+          "windowDurationMins": .number(10_080),
+          "resetsAt": .number(2_000_100_000),
+        ]),
+      ])
+    ])
+
+    let state = try CodexUsageParser.parse(result: result)
+
+    XCTAssertEqual(state.summary, .availablePercent(69))
   }
 
   func testClampsUnexpectedUsageValues() throws {
@@ -95,6 +114,6 @@ final class CodexUsageParserTests: XCTestCase {
     )
 
     XCTAssertEqual(updated?.metrics.map(\.value.value), [60, 38])
-    XCTAssertEqual(updated?.summary, .availablePercent(38))
+    XCTAssertEqual(updated?.summary, .availablePercent(60))
   }
 }

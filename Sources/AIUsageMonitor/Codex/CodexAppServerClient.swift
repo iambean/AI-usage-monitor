@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 actor CodexAppServerClient {
@@ -10,6 +11,9 @@ actor CodexAppServerClient {
   private var nextRequestID = 1
   private var pending: [Int: CheckedContinuation<JSONValue, Error>] = [:]
   private var notificationContinuation: AsyncStream<CodexNotification>.Continuation?
+  private var isStopping = false
+  private(set) var launchCount = 0
+  private(set) var unexpectedExitCount = 0
 
   init(executablePath: String) {
     self.executablePath = executablePath
@@ -51,12 +55,21 @@ actor CodexAppServerClient {
     }
     process.terminationHandler = { [weak self] terminatedProcess in
       Task {
-        await self?.handleTermination(exitCode: terminatedProcess.terminationStatus)
+        await self?.handleTermination(
+          process: terminatedProcess,
+          exitCode: terminatedProcess.terminationStatus
+        )
       }
     }
 
     try process.run()
     self.process = process
+    launchCount += 1
+    DiagnosticLog.record(
+      "codex_app_server_started",
+      providerID: .codex,
+      fields: ["launch_count": String(launchCount)]
+    )
     standardInput = inputPipe.fileHandleForWriting
     standardOutput = outputPipe.fileHandleForReading
     standardError = errorPipe.fileHandleForReading
@@ -65,7 +78,10 @@ actor CodexAppServerClient {
       "clientInfo": .object([
         "name": .string("ai_usage_monitor"),
         "title": .string("AI Usage Monitor"),
-        "version": .string("0.1.0"),
+        "version": .string(
+          Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString")
+            as? String ?? "development"
+        ),
       ])
     ])
     _ = try await request(method: "initialize", params: initializeParams)
@@ -80,12 +96,20 @@ actor CodexAppServerClient {
     )
   }
 
-  func stop() {
+  func stop() async {
+    isStopping = true
     standardOutput?.readabilityHandler = nil
     standardError?.readabilityHandler = nil
 
-    if let process, process.isRunning {
-      process.terminate()
+    let activeProcess = process
+    if let activeProcess, activeProcess.isRunning {
+      activeProcess.terminate()
+      for _ in 0..<20 where activeProcess.isRunning {
+        try? await Task.sleep(nanoseconds: 50_000_000)
+      }
+      if activeProcess.isRunning {
+        kill(activeProcess.processIdentifier, SIGKILL)
+      }
     }
 
     process = nil
@@ -94,6 +118,7 @@ actor CodexAppServerClient {
     standardError = nil
     outputBuffer.removeAll(keepingCapacity: false)
     failPending(with: CodexClientError.processExited(0))
+    isStopping = false
   }
 
   private func request(method: String, params: JSONValue) async throws -> JSONValue {
@@ -158,11 +183,23 @@ actor CodexAppServerClient {
     }
   }
 
-  private func handleTermination(exitCode: Int32) {
+  private func handleTermination(process terminatedProcess: Process, exitCode: Int32) {
+    guard process === terminatedProcess else { return }
     process = nil
     standardInput = nil
     standardOutput = nil
     standardError = nil
+    if !isStopping {
+      unexpectedExitCount += 1
+      DiagnosticLog.record(
+        "codex_app_server_exited",
+        providerID: .codex,
+        fields: [
+          "exit_code": String(exitCode),
+          "unexpected_exits": String(unexpectedExitCount),
+        ]
+      )
+    }
     failPending(with: CodexClientError.processExited(exitCode))
   }
 
