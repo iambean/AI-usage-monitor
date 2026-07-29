@@ -132,7 +132,25 @@ struct SettingsView: View {
 
       Spacer()
 
-      if metadata.configurationKind != .automatic, isAvailable(metadata) {
+      if metadata.id == .cursor {
+        Picker(
+          "",
+          selection: Binding(
+            get: { model.cursorAccountMode },
+            set: { model.setCursorAccountMode($0) }
+          )
+        ) {
+          ForEach(CursorAccountMode.allCases, id: \.self) { mode in
+            Text(mode.title).tag(mode)
+          }
+        }
+        .labelsHidden()
+        .pickerStyle(.segmented)
+        .controlSize(.small)
+        .frame(width: 118)
+      }
+
+      if requiresCredential(metadata), isAvailable(metadata) {
         Button(
           model.hasCredential(metadata.id)
             ? L10n.text("common.configure", "配置")
@@ -149,7 +167,7 @@ struct SettingsView: View {
         isOn: Binding(
           get: { model.isProviderEnabled(metadata.id) },
           set: { enabled in
-            if enabled, metadata.configurationKind != .automatic,
+            if enabled, requiresCredential(metadata),
               !model.hasCredential(metadata.id)
             {
               configurationProvider = metadata.id
@@ -170,6 +188,12 @@ struct SettingsView: View {
   private func rowDetail(_ metadata: ProviderMetadata) -> String {
     if let message = model.configurationMessages[metadata.id] {
       return message
+    }
+    if metadata.id == .cursor, model.cursorAccountMode == .personal {
+      return L10n.text(
+        "provider.cursor.personalDetail",
+        "个人版仅支持打开官方 Usage 页面"
+      )
     }
     if let path = model.detectedExecutablePaths[metadata.id] {
       return L10n.format(
@@ -192,6 +216,13 @@ struct SettingsView: View {
   private func isAvailable(_ metadata: ProviderMetadata) -> Bool {
     if case .available = metadata.availability { return true }
     return false
+  }
+
+  private func requiresCredential(_ metadata: ProviderMetadata) -> Bool {
+    if metadata.id == .cursor {
+      return model.cursorAccountMode == .teams
+    }
+    return metadata.configurationKind != .automatic
   }
 
   private var updateStatusText: String {
@@ -231,8 +262,22 @@ private struct ProviderConfigurationView: View {
       )
       .font(.system(size: 17, weight: .semibold))
 
-      SecureField("API Key", text: $apiKey)
+      SecureField(
+        providerID == .cursor ? "Cursor Admin API Key" : "API Key",
+        text: $apiKey
+      )
         .textFieldStyle(.roundedBorder)
+
+      if providerID == .cursor {
+        Text(
+          L10n.text(
+            "settings.cursorAdminKeyHelp",
+            "仅支持 Cursor Teams 管理员密钥；请在 Cursor Dashboard → Settings → Cursor Admin API Keys 中创建。"
+          )
+        )
+        .font(.system(size: 10))
+        .foregroundStyle(.secondary)
+      }
 
       if providerID == .minimax {
         Picker(

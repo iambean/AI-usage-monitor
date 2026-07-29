@@ -221,6 +221,74 @@ final class ProviderUsageParserTests: XCTestCase {
     XCTAssertEqual(state.metrics.first?.label, "总额度")
   }
 
+  func testParsesCursorTeamSpendAndMemberCount() throws {
+    let data = Data(
+      """
+      {
+        "teamMemberSpend": [
+          {
+            "spendCents": 1250,
+            "fastPremiumRequests": 20,
+            "name": "A",
+            "email": "a@example.com",
+            "role": "owner",
+            "hardLimitOverrideDollars": 100
+          },
+          {
+            "spendCents": 250,
+            "fastPremiumRequests": 5,
+            "name": "B",
+            "email": "b@example.com",
+            "role": "member",
+            "hardLimitOverrideDollars": 0
+          }
+        ],
+        "subscriptionCycleStart": 1782864000000,
+        "totalMembers": 2,
+        "totalPages": 1
+      }
+      """.utf8
+    )
+
+    let page = try CursorUsageParser.parsePage(data)
+    let state = try CursorUsageParser.makeState(
+      pages: [page],
+      now: Date(timeIntervalSince1970: 1_000)
+    )
+
+    XCTAssertEqual(page.spendCents, 1500)
+    XCTAssertEqual(page.totalMembers, 2)
+    XCTAssertEqual(state.summary, .spent(15, currency: "USD"))
+    XCTAssertEqual(state.summary?.displayText, "$15.00")
+    XCTAssertEqual(state.summary?.caption, "已用")
+    XCTAssertEqual(state.metrics.last?.value.displayText, "2 人")
+    XCTAssertEqual(
+      CursorUsageProviderFactory.endpoint.absoluteString,
+      "https://api.cursor.com/teams/spend"
+    )
+  }
+
+  func testAggregatesCursorSpendAcrossPages() throws {
+    let state = try CursorUsageParser.makeState(
+      pages: [
+        CursorTeamSpendPage(
+          spendCents: 1_000,
+          subscriptionCycleStart: nil,
+          totalMembers: 150,
+          totalPages: 2
+        ),
+        CursorTeamSpendPage(
+          spendCents: 500,
+          subscriptionCycleStart: nil,
+          totalMembers: 150,
+          totalPages: 2
+        ),
+      ]
+    )
+
+    XCTAssertEqual(state.summary, .spent(15, currency: "USD"))
+  }
+
   func testParsesClaudeStatusLineWithEpochResetTime() throws {
     let data = Data(
       """

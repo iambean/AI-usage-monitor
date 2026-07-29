@@ -40,6 +40,7 @@ and the menu bar always shows a compact summary for the first enabled provider.
 | --- | --- | --- | --- |
 | Codex | Available, default | Automatically discovers the local Codex CLI | Remaining percentage, usage windows, and reset times |
 | Claude Code | Available | Automatically discovers Claude Code and installs an owned status-line collector | Available usage windows and reset times |
+| Cursor | Teams available; Personal is web-only | Teams admin API key with an inline Teams/Personal switch | Team spend and member count for the current cycle; official Usage page for Personal |
 | Kimi Code | Available, best effort | Automatically discovers Kimi Code and reads its local login session | Subscription quota windows |
 | MiniMax | Available, best effort | Token Plan subscription key | Remaining percentage and reset windows |
 | DeepSeek | Available | DeepSeek API key | API account balance |
@@ -126,6 +127,10 @@ AI_USAGE_NOTARY_PROFILE="notary-profile" \
 - **Kimi Code:** the app locates the `kimi` executable, reads the Kimi Code
   login session stored on the Mac, and refreshes its short-lived access token
   when necessary.
+- **Cursor:** Teams is the default mode. Its admin API key is stored in the
+  macOS Keychain and the official team usage API is polled conservatively.
+  Personal mode does not use undocumented APIs and only opens the official
+  Usage page.
 - **MiniMax:** choose automatic, Global, or Mainland China service-region
   detection. The Token Plan key is stored in the macOS Keychain.
 - **DeepSeek and Qoder:** secret keys are stored in the macOS Keychain.

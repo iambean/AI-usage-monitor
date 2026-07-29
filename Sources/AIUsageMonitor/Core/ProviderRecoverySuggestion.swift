@@ -18,7 +18,7 @@ enum ProviderRecoverySuggestion {
         "recovery.kimi",
         "请在 Kimi Code 中运行 /usage；若 CLI 正常，再返回应用点击刷新。"
       )
-    case .minimax, .deepseek, .qoder:
+    case .cursor, .minimax, .deepseek, .qoder:
       return L10n.text(
         "recovery.apiProvider",
         "请检查凭证和订阅状态，然后重新配置或点击刷新。"

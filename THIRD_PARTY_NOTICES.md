@@ -10,10 +10,10 @@ and clarifies what is not covered by the project's MIT License.
 
 The Swift package currently has no external Swift Package dependencies. AI
 Usage does not redistribute the Codex, Claude Code, Kimi Code, MiniMax,
-DeepSeek, Qoder, or GLM applications, SDKs, or model weights.
+DeepSeek, Cursor, Qoder, or GLM applications, SDKs, or model weights.
 
 当前 Swift Package 没有外部 Swift Package 依赖。AI Usage 不会重新分发
-Codex、Claude Code、Kimi Code、MiniMax、DeepSeek、Qoder 或 GLM 的应用、
+Codex、Claude Code、Kimi Code、MiniMax、DeepSeek、Cursor、Qoder 或 GLM 的应用、
 SDK 或模型权重。
 
 ## 2. Provider names and brand marks / 厂商名称与品牌标识
@@ -27,6 +27,7 @@ corresponding integrations in the user interface:
 | --- | --- | --- |
 | `Resources/ProviderIcons/provider-codex.png` | OpenAI — Codex | [Codex CLI documentation](https://developers.openai.com/codex/cli/) |
 | `Resources/ProviderIcons/provider-claude.png` | Anthropic — Claude Code | [Claude Code documentation](https://code.claude.com/docs/en/overview) |
+| `Resources/ProviderIcons/provider-cursor.png` | Anysphere — Cursor | [Cursor documentation](https://docs.cursor.com/) |
 | `Resources/ProviderIcons/provider-kimi.png` | Moonshot AI — Kimi Code | [Kimi Code repository](https://github.com/MoonshotAI/kimi-code) |
 | `Resources/ProviderIcons/provider-minimax.png` | MiniMax | [MiniMax Token Plan documentation](https://platform.minimax.io/docs/token-plan/intro) |
 | `Resources/ProviderIcons/provider-deepseek.png` | DeepSeek | [DeepSeek API documentation](https://api-docs.deepseek.com/api/get-user-balance/) |

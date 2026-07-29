@@ -15,6 +15,7 @@ final class AppModel: ObservableObject {
   @Published private(set) var diagnosticsMessage: String?
   @Published private(set) var updateStatus = AppUpdateStatus.idle
   @Published private(set) var credentialAvailability: [ProviderID: Bool] = [:]
+  @Published private(set) var cursorAccountMode: CursorAccountMode
 
   private var providers: [ProviderID: any UsageProvider] = [:]
   private let updateChecker = UpdateChecker()
@@ -36,6 +37,7 @@ final class AppModel: ObservableObject {
     launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
     detectedExecutablePaths = Self.detectExecutables()
     lowPowerModeEnabled = ProcessInfo.processInfo.isLowPowerModeEnabled
+    cursorAccountMode = ProviderSettingsStore.cursorAccountMode()
 
     powerStateObserver = NotificationCenter.default.addObserver(
       forName: Notification.Name.NSProcessInfoPowerStateDidChange,
@@ -91,6 +93,9 @@ final class AppModel: ObservableObject {
 
   func hasCredential(_ id: ProviderID) -> Bool {
     switch id {
+    case .cursor:
+      return cursorAccountMode == .personal
+        || (credentialAvailability[id] ?? false)
     case .minimax, .deepseek, .qoder:
       return credentialAvailability[id] ?? false
     default:
@@ -100,6 +105,22 @@ final class AppModel: ObservableObject {
 
   func state(for id: ProviderID) -> ProviderUsageState? {
     providerStates.first(where: { $0.id == id })
+  }
+
+  func setCursorAccountMode(_ mode: CursorAccountMode) {
+    guard cursorAccountMode != mode else { return }
+    cursorAccountMode = mode
+    ProviderSettingsStore.setCursorAccountMode(mode)
+    configurationMessages[.cursor] = nil
+
+    guard isProviderEnabled(.cursor) else { return }
+    if let index = providerStates.firstIndex(where: { $0.id == .cursor }) {
+      providerStates[index] = .loading(.cursor)
+    }
+    UsageCacheStore.save(providerStates)
+    if hasStarted {
+      connect(.cursor)
+    }
   }
 
   func startIfNeeded() {
@@ -201,6 +222,16 @@ final class AppModel: ObservableObject {
       do {
         let state: ProviderUsageState
         switch providerID {
+        case .cursor:
+          guard cursorAccountMode == .teams else {
+            throw ConfigurationError.unsupported
+          }
+          state = try await CursorUsageProviderFactory.fetch(apiKey: trimmedKey)
+          try await KeychainAccessCoordinator.shared.write(
+            trimmedKey,
+            for: .cursorAdminAPIKey
+          )
+          credentialAvailability[providerID] = true
         case .minimax:
           state = try await MiniMaxUsageProviderFactory.fetch(
             apiKey: trimmedKey,
@@ -516,6 +547,16 @@ final class AppModel: ObservableObject {
         throw ConfigurationError.executableNotFound("Kimi Code")
       }
       return KimiUsageProviderFactory.make()
+    case .cursor:
+      if cursorAccountMode == .personal {
+        return CursorUsageProviderFactory.makePersonal()
+      }
+      let key = await KeychainAccessCoordinator.shared.read(.cursorAdminAPIKey)
+      credentialAvailability[id] = key != nil
+      guard let key else {
+        throw ConfigurationError.apiKeyRequired
+      }
+      return CursorUsageProviderFactory.makeTeams(apiKey: key)
     case .minimax:
       let key = await KeychainAccessCoordinator.shared.read(.minimaxAPIKey)
       credentialAvailability[id] = key != nil
@@ -584,6 +625,7 @@ final class AppModel: ObservableObject {
   private func refreshCredentialAvailability() {
     Task { @MainActor [weak self] in
       let credentials: [(ProviderID, ProviderSecret)] = [
+        (.cursor, .cursorAdminAPIKey),
         (.minimax, .minimaxAPIKey),
         (.deepseek, .deepseekAPIKey),
         (.qoder, .qoderAPIKey),

@@ -5,6 +5,7 @@ enum ProviderSecret: String {
   case minimaxAPIKey = "minimax-api-key"
   case deepseekAPIKey = "deepseek-api-key"
   case qoderAPIKey = "qoder-api-key"
+  case cursorAdminAPIKey = "cursor-admin-api-key"
 }
 
 enum KeychainStore {

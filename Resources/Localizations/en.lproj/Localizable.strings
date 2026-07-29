@@ -15,6 +15,8 @@
 
 "settings.configureProvider" = "Configure %@";
 "settings.credentialNotice" = "Credentials are stored only in the local macOS Keychain and saved after a successful test.";
+"settings.cursorAdminKeyHelp" = "Only Cursor Teams admin keys are supported. Create one in Cursor Dashboard → Settings → Cursor Admin API Keys.";
+"settings.cursorPersonal" = "Personal";
 "settings.detectedTool" = "Detected automatically · %@";
 "settings.launchAtLogin" = "Launch at login";
 "settings.redetect" = "Detect local tools again";
@@ -59,6 +61,8 @@
 "usage.hours" = "%d hours";
 "usage.minutes" = "%d minutes";
 "usage.monthly" = "Monthly";
+"usage.membersUnit" = "members";
+"usage.openProviderPage" = "Open %@ usage page";
 "usage.planQuota" = "Plan quota";
 "usage.remaining" = "Remaining";
 "usage.remainingPercent" = "%d%% remaining";
@@ -66,11 +70,16 @@
 "usage.resourcePackage" = "Resource package";
 "usage.shortTerm" = "Short term";
 "usage.teamShared" = "Team shared";
+"usage.teamMembers" = "Team members";
+"usage.teamSpend" = "Team spend this cycle";
 "usage.totalQuota" = "Total quota";
 "usage.used" = "Used";
 
 "provider.codex.detail" = "Reads Codex CLI automatically";
 "provider.claude.detail" = "Reads Claude Code status line data automatically";
+"provider.cursor.detail" = "Teams requires an admin API key";
+"provider.cursor.personalDetail" = "Personal accounts only open the official Usage page";
+"provider.cursor.personalWebOnly" = "No public personal usage API is available. Click the header to open the Usage page.";
 "provider.kimi.detail" = "Reads Kimi Code /usage automatically";
 "provider.minimax.detail" = "Requires a Token Plan subscription key";
 "provider.deepseek.detail" = "Requires a DeepSeek API key";

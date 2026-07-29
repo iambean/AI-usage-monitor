@@ -37,6 +37,7 @@
 | --- | --- | --- | --- |
 | Codex | 可用，默认启用 | 自动发现本机 Codex CLI | 剩余百分比、各用量周期和重置时间 |
 | Claude Code | 可用 | 自动发现 Claude Code，并安装由本应用管理的状态栏采集器 | 可用用量周期和重置时间 |
+| Cursor | Teams 可用；个人版仅网页入口 | Teams 管理员 Admin API Key；行内切换 Teams/个人 | Teams 本周期支出和成员数；个人版打开官方 Usage 页面 |
 | Kimi Code | 可用，尽力兼容 | 自动发现 Kimi Code，并读取本机登录态 | 套餐用量周期 |
 | MiniMax | 可用，尽力兼容 | Token Plan 订阅 Key | 剩余百分比和重置周期 |
 | DeepSeek | 可用 | DeepSeek API Key | API 账户余额 |
@@ -104,6 +105,7 @@ AI_USAGE_NOTARY_PROFILE="notary-profile" \
 - **Codex：**应用自动定位 `codex` 可执行文件，并与其本地 App Server 进程通信。
 - **Claude Code：**启用后可能在 `~/.claude/settings.json` 中添加由 AI Usage 管理的 `statusLine` 命令；如果已有其他 `statusLine` 配置，应用不会覆盖。关闭该数据源时，只移除由 AI Usage 创建的配置。
 - **Kimi Code：**应用自动定位 `kimi` 可执行文件，读取 Mac 上保存的 Kimi Code 登录态，并在短期 Access Token 即将到期时自动续期。
+- **Cursor：**默认使用 Teams 模式，管理员 API Key 保存在 macOS 钥匙串并以保守频率读取官方团队用量；切换到个人模式后不抓取未公开接口，仅打开官方 Usage 页面。
 - **MiniMax：**支持自动检测、海外、中国大陆三种服务区域；Token Plan Key 保存在 macOS 钥匙串。
 - **DeepSeek 和 Qoder：**密钥保存在 macOS 钥匙串；非敏感的数据源配置保存在应用的本地偏好设置中。
 - **登录时启动：**通过 macOS Service Management 框架管理。

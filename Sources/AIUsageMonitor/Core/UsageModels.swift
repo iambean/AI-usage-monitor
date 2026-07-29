@@ -3,6 +3,7 @@ import Foundation
 enum ProviderID: String, CaseIterable, Codable, Sendable {
   case codex
   case claude
+  case cursor
   case kimi
   case minimax
   case deepseek
@@ -59,6 +60,18 @@ enum ProviderCatalog {
       availability: .available,
       configurationKind: .automatic,
       supportTier: .compatible
+    ),
+    ProviderMetadata(
+      id: .cursor,
+      name: "Cursor",
+      symbolName: "cursorarrow.rays",
+      detail: L10n.text(
+        "provider.cursor.detail",
+        "Teams 版需要管理员 Admin API Key"
+      ),
+      availability: .available,
+      configurationKind: .apiKey,
+      supportTier: .stable
     ),
     ProviderMetadata(
       id: .kimi,
@@ -129,6 +142,7 @@ enum UsageValueKind: String, Codable, Sendable {
   case availablePercent
   case remaining
   case balance
+  case spent
   case usedOfLimit
   case unlimited
 }
@@ -158,6 +172,10 @@ struct UsageValue: Codable, Sendable, Equatable {
     UsageValue(kind: .balance, value: value, total: nil, unit: nil, currency: currency)
   }
 
+  static func spent(_ value: Double, currency: String) -> UsageValue {
+    UsageValue(kind: .spent, value: value, total: nil, unit: nil, currency: currency)
+  }
+
   static func used(_ value: Double, of total: Double, unit: String) -> UsageValue {
     UsageValue(kind: .usedOfLimit, value: value, total: total, unit: unit, currency: nil)
   }
@@ -176,7 +194,7 @@ struct UsageValue: Codable, Sendable, Equatable {
     case .usedOfLimit:
       guard let total, total > 0 else { return nil }
       return ((total - value) / total).clamped(to: 0...1)
-    case .balance:
+    case .balance, .spent:
       return nil
     case .unlimited:
       return 1
@@ -195,6 +213,8 @@ struct UsageValue: Codable, Sendable, Equatable {
       }
       return "\(Self.number(value)) \(unit ?? "")".trimmingCharacters(in: .whitespaces)
     case .balance:
+      return "\(Self.currencySymbol(currency))\(Self.money(value))"
+    case .spent:
       return "\(Self.currencySymbol(currency))\(Self.money(value))"
     case .usedOfLimit:
       guard let total else { return "\(Self.number(value)) \(unit ?? "")" }
@@ -222,7 +242,7 @@ struct UsageValue: Codable, Sendable, Equatable {
       return L10n.text("usage.remaining", "剩余")
     case .balance:
       return L10n.text("usage.balance", "余额")
-    case .usedOfLimit:
+    case .spent, .usedOfLimit:
       return L10n.text("usage.used", "已用")
     }
   }

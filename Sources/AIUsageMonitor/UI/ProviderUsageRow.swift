@@ -5,28 +5,17 @@ struct ProviderUsageRow: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 11) {
-      HStack(spacing: 10) {
-        ProviderIcon(
-          providerID: state.id,
-          fallbackSymbolName: state.symbolName,
-          size: 25
-        )
-        .frame(width: 24)
-
-        Text(state.name)
-          .font(.system(size: 14, weight: .semibold))
-
-        Spacer(minLength: 12)
-
-        VStack(alignment: .trailing, spacing: 1) {
-          Text(visibleSummary?.displayText ?? "—")
-            .font(.system(size: 18, weight: .semibold, design: .rounded))
-            .monospacedDigit()
-          Text(summaryCaption)
-            .font(.system(size: 9))
-            .foregroundStyle(.tertiary)
-        }
+      Link(destination: ProviderUsageDestination.url(for: state.id)) {
+        header
       }
+      .buttonStyle(.plain)
+      .help(
+        L10n.format(
+          "usage.openProviderPage",
+          "打开 %@ 用量页面",
+          state.name
+        )
+      )
 
       if !canShowUsage || state.metrics.isEmpty {
         VStack(alignment: .leading, spacing: 5) {
@@ -86,6 +75,33 @@ struct ProviderUsageRow: View {
       }
     }
     .padding(.vertical, 5)
+  }
+
+  private var header: some View {
+    HStack(spacing: 10) {
+      ProviderIcon(
+        providerID: state.id,
+        fallbackSymbolName: state.symbolName,
+        size: 25
+      )
+      .frame(width: 24)
+
+      Text(state.name)
+        .font(.system(size: 14, weight: .semibold))
+
+      Spacer(minLength: 12)
+
+      VStack(alignment: .trailing, spacing: 1) {
+        Text(visibleSummary?.displayText ?? "—")
+          .font(.system(size: 18, weight: .semibold, design: .rounded))
+          .monospacedDigit()
+        Text(summaryCaption)
+          .font(.system(size: 9))
+          .foregroundStyle(.tertiary)
+      }
+    }
+    .frame(maxWidth: .infinity)
+    .contentShape(Rectangle())
   }
 
   private var statusCaption: String {

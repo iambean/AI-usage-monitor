@@ -15,6 +15,8 @@
 
 "settings.configureProvider" = "配置 %@";
 "settings.credentialNotice" = "凭证仅保存在本机 macOS 钥匙串；测试成功后才会保存。";
+"settings.cursorAdminKeyHelp" = "仅支持 Cursor Teams 管理员密钥；请在 Cursor Dashboard → Settings → Cursor Admin API Keys 中创建。";
+"settings.cursorPersonal" = "个人";
 "settings.detectedTool" = "已自动找到 · %@";
 "settings.launchAtLogin" = "登录时启动";
 "settings.redetect" = "重新检测本机工具";
@@ -59,6 +61,8 @@
 "usage.hours" = "%d 小时";
 "usage.minutes" = "%d 分钟";
 "usage.monthly" = "月度";
+"usage.membersUnit" = "人";
+"usage.openProviderPage" = "打开 %@ 用量页面";
 "usage.planQuota" = "套餐额度";
 "usage.remaining" = "剩余";
 "usage.remainingPercent" = "剩余 %d%%";
@@ -66,11 +70,16 @@
 "usage.resourcePackage" = "资源包";
 "usage.shortTerm" = "短期";
 "usage.teamShared" = "团队共享";
+"usage.teamMembers" = "团队成员";
+"usage.teamSpend" = "本周期团队支出";
 "usage.totalQuota" = "总额度";
 "usage.used" = "已用";
 
 "provider.codex.detail" = "自动读取 Codex CLI";
 "provider.claude.detail" = "自动读取 Claude Code 状态栏数据";
+"provider.cursor.detail" = "Teams 版需要管理员 Admin API Key";
+"provider.cursor.personalDetail" = "个人版仅支持打开官方 Usage 页面";
+"provider.cursor.personalWebOnly" = "个人版暂未提供公开用量 API；点击标题打开 Usage 页面。";
 "provider.kimi.detail" = "自动读取 Kimi Code /usage";
 "provider.minimax.detail" = "需要 Token Plan 订阅 Key";
 "provider.deepseek.detail" = "需要 DeepSeek API Key";

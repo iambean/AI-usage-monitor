@@ -13,6 +13,10 @@ final class ProviderCatalogTests: XCTestCase {
       .compatible
     )
     XCTAssertEqual(
+      ProviderCatalog.metadata(for: .cursor).supportTier,
+      .stable
+    )
+    XCTAssertEqual(
       ProviderCatalog.metadata(for: .minimax).supportTier,
       .stable
     )
@@ -32,5 +36,9 @@ final class ProviderCatalogTests: XCTestCase {
         XCTAssertEqual(metadata.supportTier, .unavailable)
       }
     }
+  }
+
+  func testCursorDefaultsToTeamsAsTheFirstAccountMode() {
+    XCTAssertEqual(CursorAccountMode.allCases.first, .teams)
   }
 }

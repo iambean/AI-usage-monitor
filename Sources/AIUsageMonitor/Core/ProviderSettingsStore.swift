@@ -5,6 +5,20 @@ struct QoderConfiguration: Codable, Sendable, Equatable {
   var memberID = ""
 }
 
+enum CursorAccountMode: String, Codable, CaseIterable, Sendable {
+  case teams
+  case personal
+
+  var title: String {
+    switch self {
+    case .teams:
+      return "Teams"
+    case .personal:
+      return L10n.text("settings.cursorPersonal", "个人")
+    }
+  }
+}
+
 enum MiniMaxRegion: String, Codable, CaseIterable, Sendable {
   case automatic
   case global
@@ -26,6 +40,7 @@ enum ProviderSettingsStore {
   private static let enabledKey = "enabled-provider-ids"
   private static let qoderKey = "qoder-configuration"
   private static let minimaxRegionKey = "minimax-region"
+  private static let cursorAccountModeKey = "cursor-account-mode"
 
   static func enabledProviderIDs() -> [ProviderID] {
     guard let rawValues = UserDefaults.standard.array(forKey: enabledKey) as? [String] else {
@@ -69,5 +84,19 @@ enum ProviderSettingsStore {
 
   static func setMiniMaxRegion(_ region: MiniMaxRegion) {
     UserDefaults.standard.set(region.rawValue, forKey: minimaxRegionKey)
+  }
+
+  static func cursorAccountMode() -> CursorAccountMode {
+    guard
+      let rawValue = UserDefaults.standard.string(forKey: cursorAccountModeKey),
+      let value = CursorAccountMode(rawValue: rawValue)
+    else {
+      return .teams
+    }
+    return value
+  }
+
+  static func setCursorAccountMode(_ mode: CursorAccountMode) {
+    UserDefaults.standard.set(mode.rawValue, forKey: cursorAccountModeKey)
   }
 }
