@@ -19,8 +19,7 @@ struct ProviderUsageRow: View {
 
       if !canShowUsage || state.metrics.isEmpty {
         VStack(alignment: .leading, spacing: 5) {
-          Text(state.message ?? L10n.text("status.waitingForUsage", "等待用量数据"))
-            .foregroundStyle(.secondary)
+          statusMessage
           if let recoverySuggestion = state.recoverySuggestion {
             Text(recoverySuggestion)
               .foregroundStyle(.tertiary)
@@ -75,6 +74,22 @@ struct ProviderUsageRow: View {
       }
     }
     .padding(.vertical, 5)
+  }
+
+  private var statusMessage: Text {
+    var content = AttributedString(
+      state.message ?? L10n.text("status.waitingForUsage", "等待用量数据")
+    )
+    content.foregroundColor = Color(nsColor: .secondaryLabelColor)
+
+    if let action = state.messageAction {
+      var link = AttributedString(action.title)
+      link.link = action.url
+      link.foregroundColor = .accentColor
+      content.append(link)
+    }
+
+    return Text(content)
   }
 
   private var header: some View {

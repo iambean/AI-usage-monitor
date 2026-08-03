@@ -63,6 +63,7 @@
 "usage.monthly" = "月度";
 "usage.membersUnit" = "人";
 "usage.openProviderPage" = "打开 %@ 用量页面";
+"usage.openUsagePage" = "请打开 Usage 页面";
 "usage.planQuota" = "套餐额度";
 "usage.remaining" = "剩余";
 "usage.remainingPercent" = "剩余 %d%%";
@@ -79,7 +80,7 @@
 "provider.claude.detail" = "自动读取 Claude Code 状态栏数据";
 "provider.cursor.detail" = "Teams 版需要管理员 Admin API Key";
 "provider.cursor.personalDetail" = "个人版仅支持打开官方 Usage 页面";
-"provider.cursor.personalWebOnly" = "个人版暂未提供公开用量 API；点击标题打开 Usage 页面。";
+"provider.cursor.personalWebOnly" = "个人版暂未提供公开用量 API，";
 "provider.kimi.detail" = "自动读取 Kimi Code /usage";
 "provider.minimax.detail" = "需要 Token Plan 订阅 Key";
 "provider.deepseek.detail" = "需要 DeepSeek API Key";

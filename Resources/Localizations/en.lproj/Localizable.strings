@@ -63,6 +63,7 @@
 "usage.monthly" = "Monthly";
 "usage.membersUnit" = "members";
 "usage.openProviderPage" = "Open %@ usage page";
+"usage.openUsagePage" = "Open the Usage page";
 "usage.planQuota" = "Plan quota";
 "usage.remaining" = "Remaining";
 "usage.remainingPercent" = "%d%% remaining";
@@ -79,7 +80,7 @@
 "provider.claude.detail" = "Reads Claude Code status line data automatically";
 "provider.cursor.detail" = "Teams requires an admin API key";
 "provider.cursor.personalDetail" = "Personal accounts only open the official Usage page";
-"provider.cursor.personalWebOnly" = "No public personal usage API is available. Click the header to open the Usage page.";
+"provider.cursor.personalWebOnly" = "No public personal usage API is available. ";
 "provider.kimi.detail" = "Reads Kimi Code /usage automatically";
 "provider.minimax.detail" = "Requires a Token Plan subscription key";
 "provider.deepseek.detail" = "Requires a DeepSeek API key";

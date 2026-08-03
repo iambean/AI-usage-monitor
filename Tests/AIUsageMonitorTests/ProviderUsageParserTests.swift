@@ -289,6 +289,20 @@ final class ProviderUsageParserTests: XCTestCase {
     XCTAssertEqual(state.summary, .spent(15, currency: "USD"))
   }
 
+  func testCursorPersonalStateLinksToOfficialUsagePage() {
+    let now = Date(timeIntervalSince1970: 1_000)
+    let state = CursorUsageProviderFactory.personalState(now: now)
+
+    XCTAssertEqual(state.status, .connected)
+    XCTAssertEqual(state.updatedAt, now)
+    XCTAssertTrue(state.metrics.isEmpty)
+    XCTAssertEqual(
+      state.messageAction?.url,
+      ProviderUsageDestination.url(for: .cursor)
+    )
+    XCTAssertFalse(state.messageAction?.title.isEmpty ?? true)
+  }
+
   func testParsesClaudeStatusLineWithEpochResetTime() throws {
     let data = Data(
       """

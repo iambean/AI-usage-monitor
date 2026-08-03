@@ -109,20 +109,28 @@ enum CursorUsageProviderFactory {
       metadata: ProviderCatalog.metadata(for: .cursor),
       refreshInterval: 86_400
     ) {
-      ProviderUsageState(
-        id: .cursor,
-        name: "Cursor",
-        symbolName: "cursorarrow.rays",
-        status: .connected,
-        summary: nil,
-        metrics: [],
-        updatedAt: Date(),
-        message: L10n.text(
-          "provider.cursor.personalWebOnly",
-          "个人版暂未提供公开用量 API；点击标题打开 Usage 页面。"
-        )
-      )
+      personalState()
     }
+  }
+
+  static func personalState(now: Date = Date()) -> ProviderUsageState {
+    ProviderUsageState(
+      id: .cursor,
+      name: "Cursor",
+      symbolName: "cursorarrow.rays",
+      status: .connected,
+      summary: nil,
+      metrics: [],
+      updatedAt: now,
+      message: L10n.text(
+        "provider.cursor.personalWebOnly",
+        "个人版暂未提供公开用量 API，"
+      ),
+      messageAction: ProviderMessageAction(
+        title: L10n.text("usage.openUsagePage", "请打开 Usage 页面"),
+        url: ProviderUsageDestination.url(for: .cursor)
+      )
+    )
   }
 
   private static func fetchPage(

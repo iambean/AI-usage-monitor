@@ -21,7 +21,11 @@ final class ProviderFailureStateTests: XCTestCase {
         )
       ],
       updatedAt: Date(),
-      message: nil
+      message: "打开用量页面",
+      messageAction: ProviderMessageAction(
+        title: "查看",
+        url: URL(string: "https://example.com/usage")!
+      )
     )
 
     let failed = connected.failed(
@@ -34,6 +38,7 @@ final class ProviderFailureStateTests: XCTestCase {
     XCTAssertTrue(failed.metrics.isEmpty)
     XCTAssertNil(failed.updatedAt)
     XCTAssertEqual(failed.message, "服务返回了无法识别的数据")
+    XCTAssertNil(failed.messageAction)
     XCTAssertEqual(
       failed.recoverySuggestion,
       "请在 Kimi Code 中运行 /usage 后重试"

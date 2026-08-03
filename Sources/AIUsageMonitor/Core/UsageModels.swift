@@ -306,6 +306,11 @@ struct UsageMetric: Identifiable, Codable, Sendable, Equatable {
   }
 }
 
+struct ProviderMessageAction: Codable, Sendable, Equatable {
+  let title: String
+  let url: URL
+}
+
 struct ProviderUsageState: Identifiable, Codable, Sendable, Equatable {
   let id: ProviderID
   let name: String
@@ -316,6 +321,7 @@ struct ProviderUsageState: Identifiable, Codable, Sendable, Equatable {
   var updatedAt: Date?
   var message: String?
   var recoverySuggestion: String?
+  var messageAction: ProviderMessageAction?
 
   init(
     id: ProviderID,
@@ -326,7 +332,8 @@ struct ProviderUsageState: Identifiable, Codable, Sendable, Equatable {
     metrics: [UsageMetric],
     updatedAt: Date?,
     message: String?,
-    recoverySuggestion: String? = nil
+    recoverySuggestion: String? = nil,
+    messageAction: ProviderMessageAction? = nil
   ) {
     self.id = id
     self.name = name
@@ -337,6 +344,7 @@ struct ProviderUsageState: Identifiable, Codable, Sendable, Equatable {
     self.updatedAt = updatedAt
     self.message = message
     self.recoverySuggestion = recoverySuggestion
+    self.messageAction = messageAction
   }
 
   var defaultSummary: UsageValue? {
@@ -402,6 +410,7 @@ struct ProviderUsageState: Identifiable, Codable, Sendable, Equatable {
     state.updatedAt = nil
     state.message = message
     state.recoverySuggestion = recoverySuggestion
+    state.messageAction = nil
     return state
   }
 
