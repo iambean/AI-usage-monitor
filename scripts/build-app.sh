@@ -5,8 +5,6 @@ set -euo pipefail
 project_root=${0:A:h:h}
 app_bundle="$project_root/dist/AI Usage.app"
 contents="$app_bundle/Contents"
-executable="$project_root/.build/apple/Products/Release/AIUsageMonitor"
-collector="$project_root/.build/apple/Products/Release/AIUsageCollector"
 icon_source="$project_root/Resources/AppIcon-1024.png"
 icon_work=$(mktemp -d)
 iconset="$icon_work/AppIcon.iconset"
@@ -15,8 +13,11 @@ signing_identity=${AI_USAGE_SIGNING_IDENTITY:--}
 trap 'rm -rf "$icon_work"' EXIT
 
 cd "$project_root"
-swift build -c release --arch arm64 --arch x86_64 --product AIUsageMonitor
-swift build -c release --arch arm64 --arch x86_64 --product AIUsageCollector
+swift build -c release --arch arm64 --product AIUsageMonitor
+swift build -c release --arch arm64 --product AIUsageCollector
+release_bin=$(swift build -c release --arch arm64 --show-bin-path)
+executable="$release_bin/AIUsageMonitor"
+collector="$release_bin/AIUsageCollector"
 
 if [[ -e "$app_bundle" ]]; then
     rm -rf "$app_bundle"

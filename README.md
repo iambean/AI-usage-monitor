@@ -10,7 +10,7 @@ and the menu bar always shows a compact summary for the first enabled provider.
 
 > [!NOTE]
 > **AI Usage is macOS only.** It supports macOS 13 and later on Apple Silicon
-> and Intel Macs. Windows support is not currently planned.
+> Macs. Intel Mac and Windows support is not currently planned.
 
 > [!IMPORTANT]
 > AI Usage is an independent, unofficial community project. It is not affiliated
@@ -31,7 +31,7 @@ and the menu bar always shows a compact summary for the first enabled provider.
 - Local, redacted diagnostics export with no third-party telemetry
 - Lightweight GitHub Releases update check, limited to once per day in the background
 - Optional launch at login
-- Universal build for Apple Silicon and Intel Macs
+- Apple Silicon-only arm64 build
 - No project-operated proxy, analytics service, or telemetry backend
 
 ## Provider support
@@ -99,7 +99,7 @@ swift test
 open "dist/AI Usage.app"
 ```
 
-Create universal DMG and ZIP packages:
+Create Apple Silicon arm64 DMG and ZIP packages:
 
 ```bash
 ./scripts/package-release.sh
@@ -113,7 +113,7 @@ AI_USAGE_SIGNING_IDENTITY="Developer ID Application: ..." \
   ./scripts/package-release.sh
 
 AI_USAGE_NOTARY_PROFILE="notary-profile" \
-  ./scripts/notarize-release.sh "dist/AI-Usage-<version>-universal.dmg"
+  ./scripts/notarize-release.sh "dist/AI-Usage-<version>-arm64.dmg"
 ```
 
 ## Configuration and local changes

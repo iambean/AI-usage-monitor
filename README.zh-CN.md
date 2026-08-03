@@ -7,8 +7,8 @@
 应用默认只启用 Codex。你可以在设置中启用其他数据源；菜单栏会常驻显示第一个已启用数据源的精简摘要，展开后显示各数据源的详细信息。
 
 > [!NOTE]
-> **AI Usage 仅支持 macOS。** 支持 macOS 13 及以上版本，兼容 Apple Silicon
-> 和 Intel Mac；目前没有支持 Windows 的计划。
+> **AI Usage 仅支持 macOS。** 支持 macOS 13 及以上版本，仅兼容 Apple Silicon
+>（M 系）Mac；目前没有支持 Intel Mac 和 Windows 的计划。
 
 > [!IMPORTANT]
 > AI Usage 是独立、非官方的社区项目，与下列任何厂商均不存在隶属、授权、认可或赞助关系。
@@ -28,7 +28,7 @@
 - 支持导出本地脱敏诊断包，不接入第三方遥测
 - 每天最多在后台检查一次 GitHub Releases 新版本
 - 支持登录时启动
-- 同时支持 Apple Silicon 和 Intel Mac
+- 仅提供 Apple Silicon（arm64）构建
 - 不经过项目自建中转服务器，不包含项目自建的分析或遥测后端
 
 ## 数据源支持
@@ -84,7 +84,7 @@ swift test
 open "dist/AI Usage.app"
 ```
 
-生成通用架构的 DMG 和 ZIP：
+生成 Apple Silicon（arm64）架构的 DMG 和 ZIP：
 
 ```bash
 ./scripts/package-release.sh
@@ -97,7 +97,7 @@ AI_USAGE_SIGNING_IDENTITY="Developer ID Application: ..." \
   ./scripts/package-release.sh
 
 AI_USAGE_NOTARY_PROFILE="notary-profile" \
-  ./scripts/notarize-release.sh "dist/AI-Usage-<version>-universal.dmg"
+  ./scripts/notarize-release.sh "dist/AI-Usage-<version>-arm64.dmg"
 ```
 
 ## 配置方式与本地改动

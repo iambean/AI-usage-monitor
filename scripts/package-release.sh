@@ -9,7 +9,7 @@ version=$(
         "$project_root/Resources/Info.plist"
 )
 signing_identity=${AI_USAGE_SIGNING_IDENTITY:--}
-release_name="AI-Usage-$version-universal"
+release_name="AI-Usage-$version-arm64"
 
 if [[ "$signing_identity" == "-" ]]; then
     release_name="$release_name-adhoc"
