@@ -28,6 +28,7 @@ and the menu bar always shows a compact summary for the first enabled provider.
 - Primary-provider polling with hourly secondary refreshes and immediate refresh when the panel opens
 - Automatic polling reduction when macOS Low Power Mode is active
 - Clear unavailable states and recovery suggestions instead of stale cached values after an error
+- Local usage trend charts with 24-hour, 7-day, and 30-day ranges
 - Local, redacted diagnostics export with no third-party telemetry
 - Lightweight GitHub Releases update check, limited to once per day in the background
 - Optional launch at login
@@ -45,6 +46,9 @@ and the menu bar always shows a compact summary for the first enabled provider.
 | MiniMax | Available, best effort | Token Plan subscription key | Remaining percentage and reset windows |
 | DeepSeek | Available | DeepSeek API key | API account balance |
 | Qoder Teams | Available | Teams API key, organization ID, and member ID | Plan, resource package, shared, and total quota |
+| Volcengine Ark | Not yet selectable | None | Reserved until a stable official usage-query API is available |
+| Alibaba Cloud Model Studio | Not yet selectable | None | Reserved until a stable official usage-query API is available |
+| Tencent Cloud Coding Plan | Not yet selectable | None | Reserved until a stable official usage-query API is available |
 | GLM Coding Plan | Not yet selectable | None | Reserved until a stable usage-query integration is available |
 
 Provider APIs and local CLI formats can change without notice. “Available”
@@ -68,6 +72,8 @@ permanent upstream compatibility.
   labeled accordingly, while unverified integrations remain unavailable.
 - Remain telemetry-free. Diagnostics are local, redacted, and exported only
   when the user explicitly requests them.
+- Record only successful refreshes for trend charts, keep the data on the Mac,
+  and automatically discard samples older than 30 days.
 - Distribute public builds through signed and notarized GitHub Releases, with
   a lightweight version check rather than a background auto-update framework.
 

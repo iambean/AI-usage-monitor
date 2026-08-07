@@ -16,9 +16,11 @@ final class AppModel: ObservableObject {
   @Published private(set) var updateStatus = AppUpdateStatus.idle
   @Published private(set) var credentialAvailability: [ProviderID: Bool] = [:]
   @Published private(set) var cursorAccountMode: CursorAccountMode
+  @Published private(set) var usageHistory: [UsageHistoryPoint]
 
   private var providers: [ProviderID: any UsageProvider] = [:]
   private let updateChecker = UpdateChecker()
+  private let usageHistoryWriter = UsageHistoryWriter()
   private var updateTasks: [ProviderID: Task<Void, Never>] = [:]
   private var startTasks: [ProviderID: Task<Void, Never>] = [:]
   private var connectionGenerations: [ProviderID: UUID] = [:]
@@ -38,6 +40,7 @@ final class AppModel: ObservableObject {
     detectedExecutablePaths = Self.detectExecutables()
     lowPowerModeEnabled = ProcessInfo.processInfo.isLowPowerModeEnabled
     cursorAccountMode = ProviderSettingsStore.cursorAccountMode()
+    usageHistory = UsageHistoryStore.load()
 
     powerStateObserver = NotificationCenter.default.addObserver(
       forName: Notification.Name.NSProcessInfoPowerStateDidChange,
@@ -105,6 +108,15 @@ final class AppModel: ObservableObject {
 
   func state(for id: ProviderID) -> ProviderUsageState? {
     providerStates.first(where: { $0.id == id })
+  }
+
+  var trendProviderIDs: [ProviderID] {
+    let historicalProviderIDs = Set(usageHistory.map(\.providerID))
+    return ProviderCatalog.all.compactMap { metadata in
+      enabledProviderIDs.contains(metadata.id) || historicalProviderIDs.contains(metadata.id)
+        ? metadata.id
+        : nil
+    }
   }
 
   func setCursorAccountMode(_ mode: CursorAccountMode) {
@@ -585,7 +597,7 @@ final class AppModel: ObservableObject {
         throw ConfigurationError.missingQoderIDs
       }
       return QoderUsageProviderFactory.make(apiKey: key, configuration: configuration)
-    case .glm:
+    case .ark, .aliyun, .tencent, .glm:
       throw ConfigurationError.unsupported
     }
   }
@@ -599,6 +611,15 @@ final class AppModel: ObservableObject {
     }
     orderStates()
     UsageCacheStore.save(providerStates)
+    if state.status == .connected {
+      let updatedHistory = UsageHistoryStore.record(state, in: usageHistory)
+      if updatedHistory != usageHistory {
+        usageHistory = updatedHistory
+        Task {
+          await usageHistoryWriter.save(updatedHistory)
+        }
+      }
+    }
     DiagnosticLog.record(
       "provider_state",
       providerID: state.id,

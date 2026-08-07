@@ -4,6 +4,7 @@
 "common.quit" = "退出";
 "common.refresh" = "刷新";
 "common.settings" = "设置";
+"common.trends" = "趋势";
 
 "diagnostics.export" = "导出诊断";
 "diagnostics.exported" = "诊断包已导出到 %@";
@@ -85,7 +86,21 @@
 "provider.minimax.detail" = "需要 Token Plan 订阅 Key";
 "provider.deepseek.detail" = "需要 DeepSeek API Key";
 "provider.qoder.detail" = "需要 Teams OpenAPI 配置";
+"provider.ark.name" = "火山方舟 Ark";
+"provider.aliyun.name" = "阿里云百炼";
+"provider.tencent.name" = "腾讯云 Coding Plan";
+"provider.codingPlan.unavailableReason" = "等待官方稳定用量查询接口";
 "provider.glm.unavailableReason" = "官方暂未提供稳定的用量查询接口";
+
+"trends.empty" = "成功刷新后，这里会显示用量变化";
+"trends.noProviders" = "启用并成功刷新一个数据源后即可查看趋势";
+"trends.provider" = "数据源";
+"trends.range.24h" = "24 小时";
+"trends.range.7d" = "7 天";
+"trends.range.30d" = "30 天";
+"trends.recordingNote" = "仅保存在本机，最多保留 30 天成功刷新记录";
+"trends.title" = "用量趋势";
+"trends.value" = "用量";
 
 "recovery.apiProvider" = "请检查凭证和订阅状态，然后重新配置或点击刷新。";
 "recovery.claude" = "请先运行一次 Claude Code，再返回应用点击刷新。";

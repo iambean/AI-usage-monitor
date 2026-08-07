@@ -23,7 +23,7 @@ enum ProviderRecoverySuggestion {
         "recovery.apiProvider",
         "请检查凭证和订阅状态，然后重新配置或点击刷新。"
       )
-    case .glm:
+    case .ark, .aliyun, .tencent, .glm:
       return L10n.text(
         "recovery.unavailable",
         "该数据源尚未开放，请等待后续版本支持。"

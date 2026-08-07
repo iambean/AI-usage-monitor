@@ -4,6 +4,7 @@
 "common.quit" = "Quit";
 "common.refresh" = "Refresh";
 "common.settings" = "Settings";
+"common.trends" = "Trends";
 
 "diagnostics.export" = "Export Diagnostics";
 "diagnostics.exported" = "Diagnostics exported to %@";
@@ -85,7 +86,21 @@
 "provider.minimax.detail" = "Requires a Token Plan subscription key";
 "provider.deepseek.detail" = "Requires a DeepSeek API key";
 "provider.qoder.detail" = "Requires Teams OpenAPI configuration";
+"provider.ark.name" = "Volcengine Ark";
+"provider.aliyun.name" = "Alibaba Cloud Model Studio";
+"provider.tencent.name" = "Tencent Cloud Coding Plan";
+"provider.codingPlan.unavailableReason" = "Waiting for a stable official usage API";
 "provider.glm.unavailableReason" = "No stable official usage API is currently available";
+
+"trends.empty" = "Usage changes will appear after successful refreshes";
+"trends.noProviders" = "Enable and successfully refresh a provider to view trends";
+"trends.provider" = "Provider";
+"trends.range.24h" = "24 hours";
+"trends.range.7d" = "7 days";
+"trends.range.30d" = "30 days";
+"trends.recordingNote" = "Stored only on this Mac; successful refreshes are kept for up to 30 days";
+"trends.title" = "Usage Trends";
+"trends.value" = "Usage";
 
 "recovery.apiProvider" = "Check the credentials and subscription, then reconfigure or refresh.";
 "recovery.claude" = "Run Claude Code once, then return to the app and refresh.";

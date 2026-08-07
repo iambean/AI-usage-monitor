@@ -10,11 +10,12 @@ and clarifies what is not covered by the project's MIT License.
 
 The Swift package currently has no external Swift Package dependencies. AI
 Usage does not redistribute the Codex, Claude Code, Kimi Code, MiniMax,
-DeepSeek, Cursor, Qoder, or GLM applications, SDKs, or model weights.
+DeepSeek, Cursor, Qoder, Volcengine Ark, Alibaba Cloud Model Studio, Tencent
+Cloud, or GLM applications, SDKs, or model weights.
 
 当前 Swift Package 没有外部 Swift Package 依赖。AI Usage 不会重新分发
-Codex、Claude Code、Kimi Code、MiniMax、DeepSeek、Cursor、Qoder 或 GLM 的应用、
-SDK 或模型权重。
+Codex、Claude Code、Kimi Code、MiniMax、DeepSeek、Cursor、Qoder、火山方舟、
+阿里云百炼、腾讯云或 GLM 的应用、SDK 或模型权重。
 
 ## 2. Provider names and brand marks / 厂商名称与品牌标识
 
@@ -32,6 +33,9 @@ corresponding integrations in the user interface:
 | `Resources/ProviderIcons/provider-minimax.png` | MiniMax | [MiniMax Token Plan documentation](https://platform.minimax.io/docs/token-plan/intro) |
 | `Resources/ProviderIcons/provider-deepseek.png` | DeepSeek | [DeepSeek API documentation](https://api-docs.deepseek.com/api/get-user-balance/) |
 | `Resources/ProviderIcons/provider-qoder.png` | Qoder | [Qoder Teams OpenAPI documentation](https://docs.qoder.com/account/teams/openapi/index) |
+| `Resources/ProviderIcons/provider-ark.png` | ByteDance — Volcengine Ark | [Volcengine Ark Coding Plan](https://www.volcengine.com/activity/codingplan) |
+| `Resources/ProviderIcons/provider-aliyun.png` | Alibaba Cloud — Model Studio | [Model Studio Coding Plan documentation](https://help.aliyun.com/zh/model-studio/coding-plan) |
+| `Resources/ProviderIcons/provider-tencent.png` | Tencent Cloud — Coding Plan | [Tencent Cloud Coding Plan](https://cloud.tencent.com/act/pro/codingplan) |
 | `Resources/ProviderIcons/provider-glm.png` | Zhipu AI / Z.AI — GLM | [GLM Coding Plan documentation](https://docs.bigmodel.cn/cn/coding-plan/overview) |
 
 All provider names, product names, trademarks, service marks, and logos are
@@ -54,12 +58,12 @@ when necessary.
 ## 3. Apple platform resources / Apple 平台资源
 
 AI Usage uses platform frameworks supplied with macOS, including Foundation,
-SwiftUI, AppKit, Security, and ServiceManagement. It also references
+SwiftUI, AppKit, Charts, Security, and ServiceManagement. It also references
 system-provided SF Symbols by symbol name. These frameworks and symbols are
 provided by Apple and remain subject to Apple's applicable licenses and usage
 terms; they are not relicensed by this project.
 
-AI Usage 使用 macOS 自带的平台框架，包括 Foundation、SwiftUI、AppKit、
+AI Usage 使用 macOS 自带的平台框架，包括 Foundation、SwiftUI、AppKit、Charts、
 Security 和 ServiceManagement，并通过符号名称引用系统提供的 SF Symbols。
 这些框架与符号由 Apple 提供，继续受 Apple 相应许可和使用条款约束，本项目不会对其
 重新授权。

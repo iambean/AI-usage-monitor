@@ -8,6 +8,9 @@ enum ProviderID: String, CaseIterable, Codable, Sendable {
   case minimax
   case deepseek
   case qoder
+  case ark
+  case aliyun
+  case tencent
   case glm
 }
 
@@ -108,6 +111,57 @@ enum ProviderCatalog {
       availability: .available,
       configurationKind: .qoderTeams,
       supportTier: .stable
+    ),
+    ProviderMetadata(
+      id: .ark,
+      name: L10n.text("provider.ark.name", "火山方舟 Ark"),
+      symbolName: "flame.circle.fill",
+      detail: L10n.text(
+        "provider.codingPlan.unavailableReason",
+        "等待官方稳定用量查询接口"
+      ),
+      availability: .unavailable(
+        L10n.text(
+          "provider.codingPlan.unavailableReason",
+          "等待官方稳定用量查询接口"
+        )
+      ),
+      configurationKind: .automatic,
+      supportTier: .unavailable
+    ),
+    ProviderMetadata(
+      id: .aliyun,
+      name: L10n.text("provider.aliyun.name", "阿里云百炼"),
+      symbolName: "cloud.circle.fill",
+      detail: L10n.text(
+        "provider.codingPlan.unavailableReason",
+        "等待官方稳定用量查询接口"
+      ),
+      availability: .unavailable(
+        L10n.text(
+          "provider.codingPlan.unavailableReason",
+          "等待官方稳定用量查询接口"
+        )
+      ),
+      configurationKind: .automatic,
+      supportTier: .unavailable
+    ),
+    ProviderMetadata(
+      id: .tencent,
+      name: L10n.text("provider.tencent.name", "腾讯云 Coding Plan"),
+      symbolName: "cloud.fill",
+      detail: L10n.text(
+        "provider.codingPlan.unavailableReason",
+        "等待官方稳定用量查询接口"
+      ),
+      availability: .unavailable(
+        L10n.text(
+          "provider.codingPlan.unavailableReason",
+          "等待官方稳定用量查询接口"
+        )
+      ),
+      configurationKind: .automatic,
+      supportTier: .unavailable
     ),
     ProviderMetadata(
       id: .glm,

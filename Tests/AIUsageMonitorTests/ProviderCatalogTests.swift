@@ -28,6 +28,18 @@ final class ProviderCatalogTests: XCTestCase {
       ProviderCatalog.metadata(for: .glm).supportTier,
       .unavailable
     )
+    XCTAssertEqual(
+      ProviderCatalog.metadata(for: .ark).supportTier,
+      .unavailable
+    )
+    XCTAssertEqual(
+      ProviderCatalog.metadata(for: .aliyun).supportTier,
+      .unavailable
+    )
+    XCTAssertEqual(
+      ProviderCatalog.metadata(for: .tencent).supportTier,
+      .unavailable
+    )
   }
 
   func testUnavailableProvidersCannotBeClassifiedAsStable() {
@@ -40,5 +52,17 @@ final class ProviderCatalogTests: XCTestCase {
 
   func testCursorDefaultsToTeamsAsTheFirstAccountMode() {
     XCTAssertEqual(CursorAccountMode.allCases.first, .teams)
+  }
+
+  func testRequestedCodingPlansAreVisibleButUnavailable() {
+    let providerIDs: [ProviderID] = [.ark, .aliyun, .tencent]
+
+    for providerID in providerIDs {
+      let metadata = ProviderCatalog.metadata(for: providerID)
+      guard case .unavailable(let reason) = metadata.availability else {
+        return XCTFail("Expected \(providerID.rawValue) to be unavailable")
+      }
+      XCTAssertFalse(reason.isEmpty)
+    }
   }
 }

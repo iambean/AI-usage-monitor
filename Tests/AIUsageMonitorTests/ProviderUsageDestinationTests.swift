@@ -12,6 +12,9 @@ final class ProviderUsageDestinationTests: XCTestCase {
       .kimi: "https://www.kimi.com/code/console",
       .deepseek: "https://platform.deepseek.com/usage",
       .qoder: "https://qoder.com/account/settings/usage",
+      .ark: "https://www.volcengine.com/activity/codingplan",
+      .aliyun: "https://bailian.console.aliyun.com/cn-beijing/?tab=plan",
+      .tencent: "https://cloud.tencent.com/act/pro/codingplan",
       .glm: "https://bigmodel.cn/coding-plan/personal/usage",
     ]
 

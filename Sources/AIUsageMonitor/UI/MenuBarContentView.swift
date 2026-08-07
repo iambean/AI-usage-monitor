@@ -45,6 +45,13 @@ struct MenuBarContentView: View {
           model.refresh()
         }
 
+        footerButton(
+          L10n.text("common.trends", "趋势"),
+          symbol: "chart.line.uptrend.xyaxis"
+        ) {
+          openTrends()
+        }
+
         settingsControl
 
         Spacer()
@@ -97,6 +104,10 @@ struct MenuBarContentView: View {
       SettingsWindowController.shared.show(model: model)
     }
     .present()
+  }
+
+  private func openTrends() {
+    UsageTrendWindowController.shared.show(model: model)
   }
 
   private var settingsControl: some View {

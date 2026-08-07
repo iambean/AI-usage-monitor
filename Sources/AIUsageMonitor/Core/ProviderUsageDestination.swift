@@ -24,6 +24,12 @@ enum ProviderUsageDestination {
       return URL(string: "https://platform.deepseek.com/usage")!
     case .qoder:
       return URL(string: "https://qoder.com/account/settings/usage")!
+    case .ark:
+      return URL(string: "https://www.volcengine.com/activity/codingplan")!
+    case .aliyun:
+      return URL(string: "https://bailian.console.aliyun.com/cn-beijing/?tab=plan")!
+    case .tencent:
+      return URL(string: "https://cloud.tencent.com/act/pro/codingplan")!
     case .glm:
       return URL(string: "https://bigmodel.cn/coding-plan/personal/usage")!
     }

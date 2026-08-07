@@ -189,6 +189,9 @@ struct SettingsView: View {
     if let message = model.configurationMessages[metadata.id] {
       return message
     }
+    if case .unavailable(let reason) = metadata.availability {
+      return reason
+    }
     if metadata.id == .cursor, model.cursorAccountMode == .personal {
       return L10n.text(
         "provider.cursor.personalDetail",
