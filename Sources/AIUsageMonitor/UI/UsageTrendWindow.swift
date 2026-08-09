@@ -36,6 +36,7 @@ struct UsageTrendView: View {
   @EnvironmentObject private var model: AppModel
   @State private var selectedProviderID = ProviderID.codex
   @State private var selectedRange = UsageTrendRange.week
+  @State private var selectedTimestamp: Date?
 
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
@@ -132,6 +133,12 @@ struct UsageTrendView: View {
     .onChange(of: providerIDs) { _ in
       synchronizeSelection()
     }
+    .onChange(of: selectedProviderID) { _ in
+      selectedTimestamp = nil
+    }
+    .onChange(of: selectedRange) { _ in
+      selectedTimestamp = nil
+    }
   }
 
   @ViewBuilder
@@ -145,23 +152,58 @@ struct UsageTrendView: View {
   }
 
   private var chart: some View {
-    Chart(visiblePoints) { point in
-      LineMark(
-        x: .value("Time", point.recordedAt),
-        y: .value(L10n.text("trends.value", "用量"), point.value)
-      )
-      .foregroundStyle(by: .value("Metric", point.metricLabel))
-      .interpolationMethod(.linear)
-
-      if seriesCounts[point.seriesID] == 1 {
-        PointMark(
+    Chart {
+      ForEach(visiblePoints) { point in
+        LineMark(
           x: .value("Time", point.recordedAt),
           y: .value(L10n.text("trends.value", "用量"), point.value)
         )
         .foregroundStyle(by: .value("Metric", point.metricLabel))
+        .interpolationMethod(.linear)
+
+        if seriesCounts[point.seriesID] == 1 {
+          PointMark(
+            x: .value("Time", point.recordedAt),
+            y: .value(L10n.text("trends.value", "用量"), point.value)
+          )
+          .foregroundStyle(by: .value("Metric", point.metricLabel))
+        }
+      }
+
+      if let selectedTimestamp {
+        RuleMark(x: .value("Selected time", selectedTimestamp))
+          .foregroundStyle(Color.secondary.opacity(0.8))
+          .lineStyle(
+            StrokeStyle(
+              lineWidth: 1,
+              lineCap: .round,
+              dash: [4, 4]
+            )
+          )
+          .annotation(
+            position: .top,
+            alignment: tooltipAlignment,
+            spacing: 8
+          ) {
+            hoverTooltip
+          }
       }
     }
     .chartLegend(position: .top, alignment: .leading, spacing: 12)
+    .chartOverlay { proxy in
+      GeometryReader { geometry in
+        Rectangle()
+          .fill(Color.clear)
+          .contentShape(Rectangle())
+          .onContinuousHover { phase in
+            updateHoverSelection(
+              phase: phase,
+              proxy: proxy,
+              geometry: geometry
+            )
+          }
+      }
+    }
   }
 
   private var providerIDs: [ProviderID] {
@@ -204,6 +246,59 @@ struct UsageTrendView: View {
       .sorted { $0.metricLabel < $1.metricLabel }
   }
 
+  private var selectedPoints: [UsageHistoryPoint] {
+    guard let selectedTimestamp else { return [] }
+    return UsageTrendSelection.values(
+      at: selectedTimestamp,
+      in: visiblePoints
+    )
+  }
+
+  private var tooltipAlignment: Alignment {
+    guard
+      let selectedTimestamp,
+      let firstDate = visiblePoints.first?.recordedAt,
+      let lastDate = visiblePoints.last?.recordedAt
+    else {
+      return .leading
+    }
+    let midpoint = firstDate.timeIntervalSince1970
+      + lastDate.timeIntervalSince(firstDate) / 2
+    return selectedTimestamp.timeIntervalSince1970 > midpoint ? .trailing : .leading
+  }
+
+  private var hoverTooltip: some View {
+    VStack(alignment: .leading, spacing: 5) {
+      if let selectedTimestamp {
+        Text(hoverDateText(selectedTimestamp))
+          .font(.system(size: 10, weight: .semibold))
+          .foregroundStyle(.primary)
+          .monospacedDigit()
+      }
+
+      ForEach(selectedPoints) { point in
+        HStack(spacing: 12) {
+          Text(point.metricLabel)
+            .foregroundStyle(.secondary)
+          Spacer(minLength: 8)
+          Text(displayText(for: point))
+            .fontWeight(.semibold)
+            .monospacedDigit()
+        }
+        .font(.system(size: 10))
+      }
+    }
+    .padding(.horizontal, 9)
+    .padding(.vertical, 7)
+    .frame(minWidth: 150)
+    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+    .overlay(
+      RoundedRectangle(cornerRadius: 8)
+        .stroke(Color.primary.opacity(0.1), lineWidth: 0.5)
+    )
+    .shadow(color: .black.opacity(0.12), radius: 5, y: 2)
+  }
+
   private func displayText(for point: UsageHistoryPoint) -> String {
     let formatter = NumberFormatter()
     formatter.numberStyle = .decimal
@@ -234,6 +329,41 @@ struct UsageTrendView: View {
     }
   }
 
+  private func updateHoverSelection(
+    phase: HoverPhase,
+    proxy: ChartProxy,
+    geometry: GeometryProxy
+  ) {
+    switch phase {
+    case .active(let location):
+      let plotFrame = geometry[proxy.plotAreaFrame]
+      guard plotFrame.contains(location) else {
+        selectedTimestamp = nil
+        return
+      }
+      let xPosition = location.x - plotFrame.origin.x
+      guard let date: Date = proxy.value(atX: xPosition) else {
+        selectedTimestamp = nil
+        return
+      }
+      selectedTimestamp = UsageTrendSelection.nearestTimestamp(
+        to: date,
+        in: visiblePoints
+      )
+    case .ended:
+      selectedTimestamp = nil
+    }
+  }
+
+  private func hoverDateText(_ date: Date) -> String {
+    let formatter = DateFormatter()
+    formatter.locale = .current
+    formatter.timeZone = .current
+    formatter.dateStyle = .medium
+    formatter.timeStyle = .short
+    return formatter.string(from: date)
+  }
+
   private func emptyState(symbol: String, text: String) -> some View {
     VStack(spacing: 10) {
       Image(systemName: symbol)
@@ -245,6 +375,47 @@ struct UsageTrendView: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .frame(minHeight: 300)
+  }
+}
+
+enum UsageTrendSelection {
+  static func nearestTimestamp(
+    to target: Date,
+    in points: [UsageHistoryPoint]
+  ) -> Date? {
+    guard !points.isEmpty else { return nil }
+    let timestamps = Array(Set(points.map(\.recordedAt))).sorted()
+
+    var lowerBound = 0
+    var upperBound = timestamps.count
+    while lowerBound < upperBound {
+      let middle = (lowerBound + upperBound) / 2
+      if timestamps[middle] < target {
+        lowerBound = middle + 1
+      } else {
+        upperBound = middle
+      }
+    }
+
+    if lowerBound == 0 { return timestamps[0] }
+    if lowerBound == timestamps.count { return timestamps[timestamps.count - 1] }
+    let previous = timestamps[lowerBound - 1]
+    let next = timestamps[lowerBound]
+    return target.timeIntervalSince(previous) <= next.timeIntervalSince(target)
+      ? previous
+      : next
+  }
+
+  static func values(
+    at timestamp: Date,
+    in points: [UsageHistoryPoint]
+  ) -> [UsageHistoryPoint] {
+    Dictionary(grouping: points, by: \.seriesID)
+      .compactMap { _, seriesPoints in
+        let ordered = seriesPoints.sorted { $0.recordedAt < $1.recordedAt }
+        return ordered.last(where: { $0.recordedAt <= timestamp }) ?? ordered.first
+      }
+      .sorted { $0.metricLabel < $1.metricLabel }
   }
 }
 

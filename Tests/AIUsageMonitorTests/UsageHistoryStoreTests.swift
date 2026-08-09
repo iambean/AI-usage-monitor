@@ -69,6 +69,50 @@ final class UsageHistoryStoreTests: XCTestCase {
     XCTAssertEqual(result.map(\.value), [80, 70])
   }
 
+  func testTrendSelectionSnapsToNearestRecordedTimestamp() {
+    let start = Date(timeIntervalSince1970: 1_800_000_000)
+    let points = [
+      point(value: 90, date: start),
+      point(value: 80, date: start.addingTimeInterval(600)),
+    ]
+
+    XCTAssertEqual(
+      UsageTrendSelection.nearestTimestamp(
+        to: start.addingTimeInterval(240),
+        in: points
+      ),
+      start
+    )
+    XCTAssertEqual(
+      UsageTrendSelection.nearestTimestamp(
+        to: start.addingTimeInterval(420),
+        in: points
+      ),
+      start.addingTimeInterval(600)
+    )
+  }
+
+  func testTrendSelectionShowsTheLatestKnownValueForEverySeries() {
+    let start = Date(timeIntervalSince1970: 1_800_000_000)
+    let weekly = UsageHistoryPoint(
+      providerID: .codex,
+      metricID: "codex.weekly",
+      metricLabel: "Weekly",
+      recordedAt: start,
+      value: 95,
+      scale: .percent,
+      unit: "%"
+    )
+    let fiveHour = point(value: 80, date: start.addingTimeInterval(600))
+
+    let values = UsageTrendSelection.values(
+      at: start.addingTimeInterval(600),
+      in: [weekly, fiveHour]
+    )
+
+    XCTAssertEqual(values.map(\.value).sorted(), [80, 95])
+  }
+
   private func state(
     status: ProviderConnectionStatus,
     value: UsageValue,
