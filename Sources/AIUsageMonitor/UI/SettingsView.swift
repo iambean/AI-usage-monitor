@@ -59,29 +59,7 @@ struct SettingsView: View {
           .foregroundStyle(.secondary)
       }
 
-      HStack(spacing: 8) {
-        Text(L10n.text("update.title", "软件更新"))
-          .font(.system(size: 11, weight: .medium))
-
-        Text(updateStatusText)
-          .font(.system(size: 10))
-          .foregroundStyle(.secondary)
-
-        Spacer()
-
-        if case .available = model.updateStatus {
-          Button(L10n.text("update.download", "前往下载")) {
-            model.openAvailableUpdate()
-          }
-          .buttonStyle(.link)
-        }
-
-        Button(L10n.text("update.check", "检查更新")) {
-          model.checkForUpdates()
-        }
-        .buttonStyle(.link)
-        .disabled(model.updateStatus == .checking)
-      }
+      softwareUpdateSection
     }
     .padding(24)
     .frame(width: 560)
@@ -228,18 +206,124 @@ struct SettingsView: View {
     return metadata.configurationKind != .automatic
   }
 
-  private var updateStatusText: String {
+  private var softwareUpdateSection: some View {
+    HStack(spacing: 10) {
+      Image(systemName: updateSymbolName)
+        .font(.system(size: 17, weight: .medium))
+        .foregroundStyle(updateSymbolColor)
+        .frame(width: 22)
+
+      VStack(alignment: .leading, spacing: 2) {
+        Text(L10n.text("update.title", "软件更新"))
+          .font(.system(size: 11, weight: .semibold))
+        Text(updateDetailText)
+          .font(.system(size: 10))
+          .foregroundStyle(.secondary)
+      }
+
+      Spacer()
+      updateAction
+    }
+    .padding(.horizontal, 12)
+    .padding(.vertical, 10)
+    .background(
+      RoundedRectangle(cornerRadius: 10)
+        .fill(Color.primary.opacity(0.045))
+    )
+  }
+
+  @ViewBuilder
+  private var updateAction: some View {
+    switch model.updateStatus {
+    case .checking:
+      ProgressView()
+        .controlSize(.small)
+    case .available:
+      Button(L10n.text("update.download", "前往下载")) {
+        model.openAvailableUpdate()
+      }
+      .buttonStyle(.borderedProminent)
+      .controlSize(.small)
+    case .failed:
+      Button(L10n.text("update.retry", "重试")) {
+        model.checkForUpdates()
+      }
+      .buttonStyle(.bordered)
+      .controlSize(.small)
+    case .idle:
+      updateCheckButton(title: L10n.text("update.check", "检查更新"))
+    case .noRelease, .upToDate:
+      updateCheckButton(title: L10n.text("update.recheck", "重新检查"))
+    }
+  }
+
+  private func updateCheckButton(title: String) -> some View {
+    Button(title) {
+      model.checkForUpdates()
+    }
+    .buttonStyle(.bordered)
+    .controlSize(.small)
+  }
+
+  private var updateDetailText: String {
     switch model.updateStatus {
     case .idle:
-      return L10n.text("update.notChecked", "尚未检查")
+      return L10n.format("update.currentVersion", "当前版本 %@", model.currentVersion)
     case .checking:
-      return L10n.text("update.checking", "正在检查")
+      return L10n.text("update.checking", "正在检查新版本…")
+    case .noRelease:
+      return L10n.format(
+        "update.noRelease",
+        "当前版本 %@ · 尚无发布版本",
+        model.currentVersion
+      )
     case .upToDate:
-      return L10n.text("update.upToDate", "已是最新版本")
+      return L10n.format(
+        "update.upToDate",
+        "当前版本 %@ · 已是最新",
+        model.currentVersion
+      )
     case .available(let version, _):
-      return L10n.format("update.available", "发现新版本 %@", version)
+      return L10n.format(
+        "update.available",
+        "当前版本 %@ · 可更新至 %@",
+        model.currentVersion,
+        version
+      )
     case .failed:
-      return L10n.text("update.checkFailed", "检查更新失败")
+      return L10n.format(
+        "update.checkFailedDetail",
+        "当前版本 %@ · 检查失败，请稍后重试",
+        model.currentVersion
+      )
+    }
+  }
+
+  private var updateSymbolName: String {
+    switch model.updateStatus {
+    case .idle, .checking:
+      return "arrow.triangle.2.circlepath"
+    case .noRelease:
+      return "shippingbox"
+    case .upToDate:
+      return "checkmark.circle.fill"
+    case .available:
+      return "arrow.down.circle.fill"
+    case .failed:
+      return "exclamationmark.triangle.fill"
+    }
+  }
+
+  private var updateSymbolColor: Color {
+    switch model.updateStatus {
+    case .checking, .available:
+      return .accentColor
+    case .upToDate:
+      return .green
+    case .failed:
+      return .orange
+    case .idle, .noRelease:
+      return .secondary
     }
   }
 }
@@ -269,7 +353,7 @@ private struct ProviderConfigurationView: View {
         providerID == .cursor ? "Cursor Admin API Key" : "API Key",
         text: $apiKey
       )
-        .textFieldStyle(.roundedBorder)
+      .textFieldStyle(.roundedBorder)
 
       if providerID == .cursor {
         Text(

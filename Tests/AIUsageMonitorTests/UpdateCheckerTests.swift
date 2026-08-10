@@ -48,12 +48,14 @@ final class UpdateCheckerTests: XCTestCase {
     XCTAssertEqual(version, "v0.3.0")
   }
 
-  func testTreatsRepositoryWithoutReleasesAsUpToDate() async throws {
+  func testReportsRepositoryWithoutReleasesSeparately() async throws {
     let suiteName = "UpdateCheckerTests-\(UUID().uuidString)"
     let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
     defer { defaults.removePersistentDomain(forName: suiteName) }
     let responseURL = URL(string: "https://api.github.com")!
+    let requestCounter = RequestCounter()
     let checker = UpdateChecker(defaults: defaults) { _ in
+      await requestCounter.increment()
       let response = HTTPURLResponse(
         url: responseURL,
         statusCode: 404,
@@ -65,9 +67,26 @@ final class UpdateCheckerTests: XCTestCase {
 
     let result = try await checker.check(
       currentVersion: "0.3.0",
-      force: false
+      force: false,
+      now: Date(timeIntervalSince1970: 1_000_000)
+    )
+    let cached = try await checker.check(
+      currentVersion: "0.3.0",
+      force: false,
+      now: Date(timeIntervalSince1970: 1_000_100)
     )
 
-    XCTAssertEqual(result, .upToDate)
+    XCTAssertEqual(result, .noRelease)
+    XCTAssertEqual(cached, .noRelease)
+    let requestCount = await requestCounter.value
+    XCTAssertEqual(requestCount, 1)
+  }
+}
+
+private actor RequestCounter {
+  private(set) var value = 0
+
+  func increment() {
+    value += 1
   }
 }

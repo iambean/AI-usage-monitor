@@ -45,14 +45,18 @@
 "status.usage" = "Usage";
 "status.waitingForUsage" = "Waiting for usage data";
 
-"update.available" = "Version %@ is available";
+"update.available" = "Version %@ · %@ is available";
 "update.check" = "Check for Updates";
 "update.checkFailed" = "Could not check for updates";
-"update.checking" = "Checking";
+"update.checkFailedDetail" = "Version %@ · Check failed, try again later";
+"update.checking" = "Checking for updates…";
+"update.currentVersion" = "Version %@";
 "update.download" = "Download";
-"update.notChecked" = "Not checked";
+"update.noRelease" = "Version %@ · No release published yet";
+"update.recheck" = "Check Again";
+"update.retry" = "Retry";
 "update.title" = "Software Update";
-"update.upToDate" = "Up to date";
+"update.upToDate" = "Version %@ · Up to date";
 
 "usage.availableBalance" = "%@ available balance";
 "usage.balance" = "Balance";

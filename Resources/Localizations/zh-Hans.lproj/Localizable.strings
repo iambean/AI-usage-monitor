@@ -45,14 +45,18 @@
 "status.usage" = "用量";
 "status.waitingForUsage" = "等待用量数据";
 
-"update.available" = "发现新版本 %@";
+"update.available" = "当前版本 %@ · 可更新至 %@";
 "update.check" = "检查更新";
 "update.checkFailed" = "检查更新失败";
-"update.checking" = "正在检查";
+"update.checkFailedDetail" = "当前版本 %@ · 检查失败，请稍后重试";
+"update.checking" = "正在检查新版本…";
+"update.currentVersion" = "当前版本 %@";
 "update.download" = "前往下载";
-"update.notChecked" = "尚未检查";
+"update.noRelease" = "当前版本 %@ · 尚无发布版本";
+"update.recheck" = "重新检查";
+"update.retry" = "重试";
 "update.title" = "软件更新";
-"update.upToDate" = "已是最新版本";
+"update.upToDate" = "当前版本 %@ · 已是最新";
 
 "usage.availableBalance" = "%@ 可用余额";
 "usage.balance" = "余额";

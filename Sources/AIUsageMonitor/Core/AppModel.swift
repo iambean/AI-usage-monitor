@@ -18,6 +18,11 @@ final class AppModel: ObservableObject {
   @Published private(set) var cursorAccountMode: CursorAccountMode
   @Published private(set) var usageHistory: [UsageHistoryPoint]
 
+  var currentVersion: String {
+    Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString")
+      as? String ?? "0.0.0"
+  }
+
   private var providers: [ProviderID: any UsageProvider] = [:]
   private let updateChecker = UpdateChecker()
   private let usageHistoryWriter = UsageHistoryWriter()
@@ -354,9 +359,6 @@ final class AppModel: ObservableObject {
     if manual {
       updateStatus = .checking
     }
-    let currentVersion =
-      Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString")
-      as? String ?? "0.0.0"
     Task {
       do {
         let result = try await updateChecker.check(
@@ -368,6 +370,8 @@ final class AppModel: ObservableObject {
           if manual {
             updateStatus = .upToDate
           }
+        case .noRelease:
+          updateStatus = .noRelease
         case .upToDate:
           updateStatus = .upToDate
         case .available(let version, let url):

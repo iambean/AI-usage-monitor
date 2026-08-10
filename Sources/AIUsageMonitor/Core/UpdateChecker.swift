@@ -32,6 +32,7 @@ struct AppVersion: Comparable, Equatable {
 
 enum UpdateCheckResult: Sendable, Equatable {
   case skipped
+  case noRelease
   case upToDate
   case available(version: String, url: URL)
 }
@@ -39,6 +40,7 @@ enum UpdateCheckResult: Sendable, Equatable {
 enum AppUpdateStatus: Equatable {
   case idle
   case checking
+  case noRelease
   case upToDate
   case available(version: String, url: URL)
   case failed
@@ -48,12 +50,13 @@ actor UpdateChecker {
   typealias Send = @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
   private static let latestReleaseURL = URL(
-    string: "https://api.github.com/repos/iambean/codex-usage-monitor/releases/latest"
+    string: "https://api.github.com/repos/iambean/AI-usage-monitor/releases/latest"
   )!
   private static let minimumInterval: TimeInterval = 24 * 60 * 60
   private static let lastAttemptKey = "update-last-attempt"
   private static let latestVersionKey = "update-latest-version"
   private static let latestURLKey = "update-latest-url"
+  private static let noReleaseKey = "update-no-release"
 
   private let defaults: UserDefaults
   private let send: Send
@@ -93,12 +96,14 @@ actor UpdateChecker {
     if response.statusCode == 404 {
       defaults.removeObject(forKey: Self.latestVersionKey)
       defaults.removeObject(forKey: Self.latestURLKey)
-      return .upToDate
+      defaults.set(true, forKey: Self.noReleaseKey)
+      return .noRelease
     }
     guard (200...299).contains(response.statusCode) else {
       throw UpdateCheckError.invalidResponse
     }
     let release = try JSONDecoder().decode(Release.self, from: data)
+    defaults.removeObject(forKey: Self.noReleaseKey)
     defaults.set(release.tagName, forKey: Self.latestVersionKey)
     defaults.set(release.htmlURL.absoluteString, forKey: Self.latestURLKey)
     return result(
@@ -109,6 +114,9 @@ actor UpdateChecker {
   }
 
   private func cachedResult(currentVersion: String) -> UpdateCheckResult {
+    if defaults.bool(forKey: Self.noReleaseKey) {
+      return .noRelease
+    }
     guard
       let version = defaults.string(forKey: Self.latestVersionKey),
       let rawURL = defaults.string(forKey: Self.latestURLKey),
