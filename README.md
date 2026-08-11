@@ -47,7 +47,7 @@ and the menu bar always shows a compact summary for the first enabled provider.
 - Compact always-visible usage summary with detailed expandable rows
 - Five-hour quota is preferred in the menu bar; the panel shows each usage window and its exact reset time
 - The main panel and Settings follow the normal macOS window stacking behavior
-- Simplified Chinese and English UI, with Chinese as the default fallback
+- In-app language switcher for System Default, Simplified Chinese, and English, with Chinese as the fallback
 - Automatic discovery of locally installed Codex, Claude Code, and Kimi Code
 - Credentials for API-based providers stored in the macOS Keychain
 - Primary-provider polling with hourly secondary refreshes and immediate refresh when the panel opens

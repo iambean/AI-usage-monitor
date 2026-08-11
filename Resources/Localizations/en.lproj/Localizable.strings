@@ -20,6 +20,10 @@
 "settings.cursorPersonal" = "Personal";
 "settings.detectedTool" = "Detected automatically · %@";
 "settings.launchAtLogin" = "Launch at login";
+"settings.language" = "Language";
+"settings.language.system" = "System Default";
+"settings.language.chinese" = "Simplified Chinese";
+"settings.language.english" = "English";
 "settings.redetect" = "Detect local tools again";
 "settings.regionAutomatic" = "Detect automatically";
 "settings.regionChina" = "Mainland China";

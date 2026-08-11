@@ -20,6 +20,10 @@
 "settings.cursorPersonal" = "个人";
 "settings.detectedTool" = "已自动找到 · %@";
 "settings.launchAtLogin" = "登录时启动";
+"settings.language" = "语言";
+"settings.language.system" = "跟随系统";
+"settings.language.chinese" = "简体中文";
+"settings.language.english" = "English";
 "settings.redetect" = "重新检测本机工具";
 "settings.regionAutomatic" = "自动检测";
 "settings.regionChina" = "中国大陆";

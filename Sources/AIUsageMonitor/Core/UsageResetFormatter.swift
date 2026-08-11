@@ -3,7 +3,7 @@ import Foundation
 enum UsageResetFormatter {
   static func dateTime(
     for date: Date,
-    locale: Locale = .current,
+    locale: Locale = L10n.locale,
     timeZone: TimeZone = .current
   ) -> String {
     let formatter = DateFormatter()

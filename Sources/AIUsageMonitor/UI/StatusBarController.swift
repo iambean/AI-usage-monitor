@@ -82,6 +82,15 @@ final class StatusBarController: NSObject {
         self?.resizeAndPositionPanel()
       }
       .store(in: &cancellables)
+
+    model.$appLanguage
+      .dropFirst()
+      .receive(on: RunLoop.main)
+      .sink { [weak self] _ in
+        self?.updateStatusItem()
+        self?.resizeAndPositionPanel()
+      }
+      .store(in: &cancellables)
   }
 
   private func updateStatusItem() {

@@ -17,6 +17,7 @@ final class AppModel: ObservableObject {
   @Published private(set) var credentialAvailability: [ProviderID: Bool] = [:]
   @Published private(set) var cursorAccountMode: CursorAccountMode
   @Published private(set) var usageHistory: [UsageHistoryPoint]
+  @Published private(set) var appLanguage: AppLanguage
 
   var currentVersion: String {
     Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString")
@@ -35,6 +36,7 @@ final class AppModel: ObservableObject {
   private var isShuttingDown = false
 
   init() {
+    appLanguage = AppLanguageStore.load()
     let enabled = ProviderSettingsStore.enabledProviderIDs()
     enabledProviderIDs = enabled
     let cached = UsageCacheStore.load()
@@ -137,6 +139,23 @@ final class AppModel: ObservableObject {
     UsageCacheStore.save(providerStates)
     if hasStarted {
       connect(.cursor)
+    }
+  }
+
+  func setAppLanguage(_ language: AppLanguage) {
+    guard appLanguage != language else { return }
+    AppLanguageStore.save(language)
+    appLanguage = language
+    configurationMessages = [:]
+    diagnosticsMessage = nil
+    providerStates = enabledProviderIDs.map(ProviderUsageState.loading)
+    UsageCacheStore.save(providerStates)
+    SettingsWindowController.shared.updateLocalization()
+    UsageTrendWindowController.shared.updateLocalization()
+
+    guard hasStarted else { return }
+    for id in enabledProviderIDs {
+      connect(id)
     }
   }
 

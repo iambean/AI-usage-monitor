@@ -8,11 +8,16 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
   func show(model: AppModel) {
     let preferredScreen = NSApp.keyWindow?.screen ?? screenContainingMouse
     let settingsWindow = window ?? makeWindow(model: model, screen: preferredScreen)
+    updateLocalization()
     WindowPresentationPolicy.natural.apply(to: settingsWindow)
     showWindow(nil)
     settingsWindow.makeKeyAndOrderFront(nil)
     settingsWindow.orderFrontRegardless()
     NSApp.activate(ignoringOtherApps: true)
+  }
+
+  func updateLocalization() {
+    window?.title = L10n.text("settings.windowTitle", "AI Usage 设置")
   }
 
   private func makeWindow(model: AppModel, screen: NSScreen?) -> NSWindow {

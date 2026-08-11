@@ -301,6 +301,7 @@ struct UsageTrendView: View {
 
   private func displayText(for point: UsageHistoryPoint) -> String {
     let formatter = NumberFormatter()
+    formatter.locale = L10n.locale
     formatter.numberStyle = .decimal
     formatter.maximumFractionDigits = point.scale == .currency ? 2 : 1
     formatter.minimumFractionDigits = point.scale == .currency ? 2 : 0
@@ -357,7 +358,7 @@ struct UsageTrendView: View {
 
   private func hoverDateText(_ date: Date) -> String {
     let formatter = DateFormatter()
-    formatter.locale = .current
+    formatter.locale = L10n.locale
     formatter.timeZone = .current
     formatter.dateStyle = .medium
     formatter.timeStyle = .short
@@ -426,10 +427,15 @@ final class UsageTrendWindowController: NSWindowController, NSWindowDelegate {
   func show(model: AppModel) {
     let preferredScreen = NSApp.keyWindow?.screen ?? screenContainingMouse
     let trendWindow = window ?? makeWindow(model: model, screen: preferredScreen)
+    updateLocalization()
     WindowPresentationPolicy.natural.apply(to: trendWindow)
     showWindow(nil)
     trendWindow.makeKeyAndOrderFront(nil)
     NSApp.activate(ignoringOtherApps: true)
+  }
+
+  func updateLocalization() {
+    window?.title = L10n.text("trends.title", "用量趋势")
   }
 
   private func makeWindow(model: AppModel, screen: NSScreen?) -> NSWindow {

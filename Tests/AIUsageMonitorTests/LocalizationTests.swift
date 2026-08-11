@@ -1,6 +1,8 @@
 import Foundation
 import XCTest
 
+@testable import AIUsageMonitor
+
 final class LocalizationTests: XCTestCase {
   func testChineseAndEnglishContainTheSameKeys() throws {
     let chinese = try strings(language: "zh-Hans")
@@ -21,6 +23,24 @@ final class LocalizationTests: XCTestCase {
 
     XCTAssertEqual(info["CFBundleDevelopmentRegion"] as? String, "zh-Hans")
     XCTAssertEqual(info["CFBundleLocalizations"] as? [String], ["zh-Hans", "en"])
+  }
+
+  func testAppLanguageDefaultsToSystemAndPersistsSelection() throws {
+    let suiteName = "LocalizationTests.\(UUID().uuidString)"
+    let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+
+    XCTAssertEqual(AppLanguageStore.load(defaults: defaults), .system)
+    AppLanguageStore.save(.english, defaults: defaults)
+    XCTAssertEqual(AppLanguageStore.load(defaults: defaults), .english)
+    AppLanguageStore.save(.simplifiedChinese, defaults: defaults)
+    XCTAssertEqual(AppLanguageStore.load(defaults: defaults), .simplifiedChinese)
+  }
+
+  func testEveryLanguageHasTheExpectedLocale() {
+    XCTAssertEqual(AppLanguage.system.locale, .current)
+    XCTAssertEqual(AppLanguage.simplifiedChinese.locale.identifier, "zh-Hans")
+    XCTAssertEqual(AppLanguage.english.locale.identifier, "en")
   }
 
   func testEveryLocalizedSourceKeyExistsInBothLanguages() throws {

@@ -42,7 +42,7 @@ struct ProviderMetadata: Identifiable, Sendable, Equatable {
 }
 
 enum ProviderCatalog {
-  static let all: [ProviderMetadata] = [
+  static var all: [ProviderMetadata] { [
     ProviderMetadata(
       id: .codex,
       name: "Codex",
@@ -177,7 +177,7 @@ enum ProviderCatalog {
       configurationKind: .automatic,
       supportTier: .unavailable
     ),
-  ]
+  ] }
 
   static func metadata(for id: ProviderID) -> ProviderMetadata {
     all.first(where: { $0.id == id })!
@@ -303,6 +303,7 @@ struct UsageValue: Codable, Sendable, Equatable {
 
   private static func number(_ value: Double) -> String {
     let formatter = NumberFormatter()
+    formatter.locale = L10n.locale
     formatter.numberStyle = .decimal
     formatter.maximumFractionDigits = value.rounded() == value ? 0 : 1
     return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.1f", value)
@@ -310,6 +311,7 @@ struct UsageValue: Codable, Sendable, Equatable {
 
   private static func money(_ value: Double) -> String {
     let formatter = NumberFormatter()
+    formatter.locale = L10n.locale
     formatter.numberStyle = .decimal
     formatter.minimumFractionDigits = 2
     formatter.maximumFractionDigits = 2

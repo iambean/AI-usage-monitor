@@ -83,6 +83,7 @@ struct MenuBarContentView: View {
     }
 
     let formatter = RelativeDateTimeFormatter()
+    formatter.locale = L10n.locale
     formatter.unitsStyle = .short
     return formatter.localizedString(for: date, relativeTo: Date())
   }

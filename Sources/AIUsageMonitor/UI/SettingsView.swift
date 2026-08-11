@@ -37,6 +37,22 @@ struct SettingsView: View {
 
         Spacer()
 
+        Picker(
+          L10n.text("settings.language", "语言"),
+          selection: Binding(
+            get: { model.appLanguage },
+            set: { model.setAppLanguage($0) }
+          )
+        ) {
+          ForEach(AppLanguage.allCases) { language in
+            Text(language.title).tag(language)
+          }
+        }
+        .pickerStyle(.menu)
+        .controlSize(.small)
+        .fixedSize()
+        .id(model.appLanguage)
+
         Toggle(
           L10n.text("settings.launchAtLogin", "登录时启动"),
           isOn: Binding(
@@ -126,6 +142,7 @@ struct SettingsView: View {
         .pickerStyle(.segmented)
         .controlSize(.small)
         .frame(width: 118)
+        .id(model.appLanguage)
       }
 
       if requiresCredential(metadata), isAvailable(metadata) {
