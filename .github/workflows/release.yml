@@ -100,4 +100,4 @@ jobs:
             --latest \
             --title "AI Usage $tag" \
             --generate-notes \
-            --notes "Apple Silicon only. This community build is ad-hoc signed and is not notarized by Apple. If macOS blocks the first launch, right-click AI Usage and choose Open.\n\n仅支持 Apple Silicon。本社区构建使用 ad-hoc 签名，未经 Apple 公证；如果 macOS 阻止首次启动，请右键 AI Usage 并选择“打开”。"
+            --notes $'Apple Silicon only. This community build is ad-hoc signed and is not notarized by Apple. If macOS blocks the first launch, right-click AI Usage and choose Open.\n\n仅支持 Apple Silicon。本社区构建使用 ad-hoc 签名，未经 Apple 公证；如果 macOS 阻止首次启动，请右键 AI Usage 并选择“打开”。'
