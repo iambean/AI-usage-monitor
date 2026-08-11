@@ -13,6 +13,28 @@
 > [!IMPORTANT]
 > AI Usage 是独立、非官方的社区项目，与下列任何厂商均不存在隶属、授权、认可或赞助关系。
 
+## 效果预览
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="./docs/images/usage-overview.png" alt="AI Usage 菜单栏主面板与厂商用量详情" />
+      <br /><sub>厂商用量总览</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="./docs/images/provider-settings.png" alt="AI Usage 数据源设置" />
+      <br /><sub>数据源设置与本机工具自动发现</sub>
+    </td>
+  </tr>
+</table>
+
+<p align="center">
+  <img src="./docs/images/usage-trends.png" alt="AI Usage 本地用量趋势图" width="820" />
+  <br /><sub>本地 24 小时、7 天和 30 天用量趋势</sub>
+</p>
+
+> 效果图使用合成演示数据，不包含个人账户信息。
+
 ## 功能特点
 
 - 基于 SwiftUI 的原生 macOS 菜单栏体验，支持 macOS 13 及以上版本

@@ -16,6 +16,29 @@ and the menu bar always shows a compact summary for the first enabled provider.
 > AI Usage is an independent, unofficial community project. It is not affiliated
 > with, endorsed by, or sponsored by any provider listed below.
 
+## Preview
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="./docs/images/usage-overview.png" alt="AI Usage menu-bar panel with provider usage details" />
+      <br /><sub>Provider usage overview</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="./docs/images/provider-settings.png" alt="AI Usage provider settings" />
+      <br /><sub>Provider settings and local tool discovery</sub>
+    </td>
+  </tr>
+</table>
+
+<p align="center">
+  <img src="./docs/images/usage-trends.png" alt="AI Usage local usage trend chart" width="820" />
+  <br /><sub>Local 24-hour, 7-day, and 30-day usage trends</sub>
+</p>
+
+> Screenshots use synthetic demonstration data and do not contain personal
+> account information.
+
 ## Features
 
 - Native SwiftUI menu bar experience for macOS 13 and later
