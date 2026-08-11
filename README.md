@@ -2,6 +2,8 @@
 
 English | [简体中文](./README.zh-CN.md)
 
+[![Release](https://github.com/iambean/AI-usage-monitor/actions/workflows/release.yml/badge.svg)](https://github.com/iambean/AI-usage-monitor/actions/workflows/release.yml)
+
 A lightweight, native macOS menu bar app for viewing the remaining quota,
 usage windows, or account balance of AI coding services.
 
@@ -97,20 +99,21 @@ permanent upstream compatibility.
   when the user explicitly requests them.
 - Record only successful refreshes for trend charts, keep the data on the Mac,
   and automatically discard samples older than 30 days.
-- Distribute public builds through signed and notarized GitHub Releases, with
-  a lightweight version check rather than a background auto-update framework.
+- Publish Apple Silicon builds through tag-triggered GitHub Releases, with a
+  lightweight version check rather than a background auto-update framework.
 
 ## Installation
 
 ### Download a release
 
 Download the latest DMG or ZIP from
-[GitHub Releases](https://github.com/iambean/codex-usage-monitor/releases) when
+[GitHub Releases](https://github.com/iambean/AI-usage-monitor/releases) when
 a release artifact is available.
 
-Public release builds should be signed with a Developer ID certificate and
-notarized by Apple. Locally built ad-hoc packages may trigger a macOS Gatekeeper
-warning.
+Current community release artifacts use ad-hoc signing and are not notarized by
+Apple, so macOS Gatekeeper may show a warning on first launch. Developer ID
+signing and notarization can be added after the required Apple credentials are
+available.
 
 ### Build from source
 
@@ -121,8 +124,8 @@ Requirements:
 - Swift 5.10 or later
 
 ```bash
-git clone https://github.com/iambean/codex-usage-monitor.git
-cd codex-usage-monitor
+git clone https://github.com/iambean/AI-usage-monitor.git
+cd AI-usage-monitor
 swift test
 ./scripts/build-app.sh
 open "dist/AI Usage.app"
@@ -144,6 +147,21 @@ AI_USAGE_SIGNING_IDENTITY="Developer ID Application: ..." \
 AI_USAGE_NOTARY_PROFILE="notary-profile" \
   ./scripts/notarize-release.sh "dist/AI-Usage-<version>-arm64.dmg"
 ```
+
+### Publish a release
+
+Update `CFBundleShortVersionString` and `CFBundleVersion` in
+`Resources/Info.plist`, commit and push the change, then create and push the
+matching semantic version tag:
+
+```bash
+git tag v0.3.1
+git push origin v0.3.1
+```
+
+The Release workflow validates the tag, runs the test suite, builds and verifies
+the Apple Silicon DMG and ZIP, generates SHA-256 checksums, and publishes the
+GitHub Release. Ordinary branch pushes do not publish a release.
 
 ## Configuration and local changes
 

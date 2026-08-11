@@ -2,6 +2,8 @@
 
 [English](./README.md) | 简体中文
 
+[![发布](https://github.com/iambean/AI-usage-monitor/actions/workflows/release.yml/badge.svg)](https://github.com/iambean/AI-usage-monitor/actions/workflows/release.yml)
+
 一款轻量、原生的 macOS 菜单栏应用，用于查看 AI 编程服务的剩余额度、用量周期或账户余额。
 
 应用默认只启用 Codex。你可以在设置中启用其他数据源；菜单栏会常驻显示第一个已启用数据源的精简摘要，展开后显示各数据源的详细信息。
@@ -83,17 +85,17 @@
 - 优先使用官方 API；依赖本机 CLI 登录态的集成会明确标注，未经验证的数据源保持不可用。
 - 坚持零遥测；诊断信息仅保存在本机、完成脱敏，并只在用户主动操作时导出。
 - 趋势曲线仅记录成功刷新结果，数据只保存在本机，并自动清理 30 天前的记录。
-- 公开版本通过 GitHub Releases 提供签名和 Apple 公证产物，使用轻量版本检查，暂不引入后台自动更新框架。
+- 通过版本标签自动构建 Apple Silicon 安装包并发布到 GitHub Releases；应用使用轻量版本检查，暂不引入后台自动更新框架。
 
 ## 安装
 
 ### 下载发布版本
 
 发布产物可用时，请从
-[GitHub Releases](https://github.com/iambean/codex-usage-monitor/releases)
+[GitHub Releases](https://github.com/iambean/AI-usage-monitor/releases)
 下载最新的 DMG 或 ZIP。
 
-对外发布版本应使用 Developer ID 证书签名并经过 Apple 公证。本地构建的 ad-hoc 安装包可能触发 macOS Gatekeeper 提示。
+当前社区发布包使用 ad-hoc 签名，未经 Apple 公证，首次启动时可能触发 macOS Gatekeeper 提示。取得 Apple Developer 所需凭据后，可以再接入 Developer ID 签名与公证。
 
 ### 从源码构建
 
@@ -104,8 +106,8 @@
 - Swift 5.10 或更高版本
 
 ```bash
-git clone https://github.com/iambean/codex-usage-monitor.git
-cd codex-usage-monitor
+git clone https://github.com/iambean/AI-usage-monitor.git
+cd AI-usage-monitor
 swift test
 ./scripts/build-app.sh
 open "dist/AI Usage.app"
@@ -126,6 +128,20 @@ AI_USAGE_SIGNING_IDENTITY="Developer ID Application: ..." \
 AI_USAGE_NOTARY_PROFILE="notary-profile" \
   ./scripts/notarize-release.sh "dist/AI-Usage-<version>-arm64.dmg"
 ```
+
+### 发布新版本
+
+先修改 `Resources/Info.plist` 中的 `CFBundleShortVersionString` 和
+`CFBundleVersion`，提交并推送代码，再创建并推送与版本号一致的语义化标签：
+
+```bash
+git tag v0.3.1
+git push origin v0.3.1
+```
+
+Release 工作流会校验标签与应用版本、运行测试、构建并验证 Apple Silicon
+DMG/ZIP、生成 SHA-256 校验文件，最后自动发布 GitHub Release。普通分支 push
+不会触发发布。
 
 ## 配置方式与本地改动
 

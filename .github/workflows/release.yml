@@ -1,0 +1,103 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish Apple Silicon release
+    runs-on: macos-14
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate release version
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag="$GITHUB_REF_NAME"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tag must use the vMAJOR.MINOR.PATCH format; received $tag"
+            exit 1
+          fi
+
+          version=$(
+            /usr/libexec/PlistBuddy \
+              -c 'Print :CFBundleShortVersionString' \
+              Resources/Info.plist
+          )
+          expected_tag="v${version}"
+          if [[ "$tag" != "$expected_tag" ]]; then
+            echo "::error::Tag $tag does not match Info.plist version $version"
+            exit 1
+          fi
+
+          git rev-parse --verify "refs/tags/$tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Run tests
+        run: swift test
+
+      - name: Build DMG and ZIP
+        run: ./scripts/package-release.sh
+
+      - name: Verify release artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="${{ steps.release.outputs.version }}"
+          app="dist/AI Usage.app"
+          dmg="dist/AI-Usage-${version}-arm64-adhoc.dmg"
+          zip="dist/AI-Usage-${version}-arm64-adhoc.zip"
+
+          codesign --verify --deep --strict --verbose=2 "$app"
+          hdiutil verify "$dmg"
+          file "$app/Contents/MacOS/AIUsageMonitor" | grep -q 'arm64'
+          test -s "$zip"
+
+          (
+            cd dist
+            shasum -a 256 \
+              "AI-Usage-${version}-arm64-adhoc.dmg" \
+              "AI-Usage-${version}-arm64-adhoc.zip" \
+              > SHA256SUMS.txt
+          )
+
+      - name: Publish GitHub Release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag="${{ steps.release.outputs.tag }}"
+          version="${{ steps.release.outputs.version }}"
+
+          gh release create "$tag" \
+            "dist/AI-Usage-${version}-arm64-adhoc.dmg#AI Usage $tag for Apple Silicon (DMG)" \
+            "dist/AI-Usage-${version}-arm64-adhoc.zip#AI Usage $tag for Apple Silicon (ZIP)" \
+            "dist/SHA256SUMS.txt#SHA-256 checksums" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --latest \
+            --title "AI Usage $tag" \
+            --generate-notes \
+            --notes "Apple Silicon only. This community build is ad-hoc signed and is not notarized by Apple. If macOS blocks the first launch, right-click AI Usage and choose Open.\n\n仅支持 Apple Silicon。本社区构建使用 ad-hoc 签名，未经 Apple 公证；如果 macOS 阻止首次启动，请右键 AI Usage 并选择“打开”。"
