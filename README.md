@@ -58,6 +58,7 @@ kept at the top and used for the menu-bar summary.
 - Local usage trend charts with 24-hour, 7-day, and 30-day ranges
 - Local, redacted diagnostics export with no third-party telemetry
 - Lightweight GitHub Releases update check, limited to once per day in the background
+- In-app update download, signature verification, installation, and relaunch through Sparkle
 - Optional launch at login
 - Apple Silicon-only arm64 build
 - No project-operated proxy, analytics service, or telemetry backend
@@ -101,8 +102,8 @@ permanent upstream compatibility.
   when the user explicitly requests them.
 - Record only successful refreshes for trend charts, keep the data on the Mac,
   and automatically discard samples older than 30 days.
-- Publish Apple Silicon builds through tag-triggered GitHub Releases, with a
-  lightweight version check rather than a background auto-update framework.
+- Publish Apple Silicon builds through tag-triggered GitHub Releases, sign the
+  Sparkle update archive, update the appcast, and support in-app installation.
 
 ## Installation
 

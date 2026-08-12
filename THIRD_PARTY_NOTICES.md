@@ -6,15 +6,27 @@ and clarifies what is not covered by the project's MIT License.
 本文说明 AI Usage 引用或使用的第三方资源，并明确不属于本项目 MIT License
 授权范围的内容。
 
-## 1. No bundled third-party source packages / 未打包第三方源码依赖
+## 1. Bundled open-source dependency / 打包的开源依赖
 
-The Swift package currently has no external Swift Package dependencies. AI
-Usage does not redistribute the Codex, Claude Code, Kimi Code, MiniMax,
+AI Usage bundles Sparkle 2, an MIT-licensed macOS software-update framework:
+
+AI Usage 打包了 Sparkle 2，这是一个采用 MIT License 的 macOS 软件更新框架：
+
+| Dependency / 依赖 | Purpose / 用途 | License / 协议 | Source / 来源 |
+| --- | --- | --- | --- |
+| Sparkle 2 | Secure update download, verification, installation, and relaunch / 安全更新下载、验证、安装和重启 | MIT License | [sparkle-project/Sparkle](https://github.com/sparkle-project/Sparkle) |
+
+The complete Sparkle license and bundled external notices are distributed as
+`SPARKLE-LICENSE.txt` inside the app bundle.
+
+Sparkle 的完整协议及其内含第三方声明会以 `SPARKLE-LICENSE.txt` 随 App Bundle
+一同分发。
+
+AI Usage does not redistribute the Codex, Claude Code, Kimi Code, MiniMax,
 DeepSeek, Cursor, Qoder, Volcengine Ark, Alibaba Cloud Model Studio, Tencent
 Cloud, or GLM applications, SDKs, or model weights.
 
-当前 Swift Package 没有外部 Swift Package 依赖。AI Usage 不会重新分发
-Codex、Claude Code、Kimi Code、MiniMax、DeepSeek、Cursor、Qoder、火山方舟、
+AI Usage 不会重新分发 Codex、Claude Code、Kimi Code、MiniMax、DeepSeek、Cursor、Qoder、火山方舟、
 阿里云百炼、腾讯云或 GLM 的应用、SDK 或模型权重。
 
 ## 2. Provider names and brand marks / 厂商名称与品牌标识

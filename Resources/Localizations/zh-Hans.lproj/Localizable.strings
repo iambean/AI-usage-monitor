@@ -57,7 +57,7 @@
 "update.checkFailedDetail" = "当前版本 %@ · 检查失败，请稍后重试";
 "update.checking" = "正在检查新版本…";
 "update.currentVersion" = "当前版本 %@";
-"update.download" = "前往下载";
+"update.download" = "安装更新";
 "update.noRelease" = "当前版本 %@ · 尚无发布版本";
 "update.recheck" = "重新检查";
 "update.retry" = "重试";

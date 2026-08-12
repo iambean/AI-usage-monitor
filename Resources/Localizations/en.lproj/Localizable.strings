@@ -57,7 +57,7 @@
 "update.checkFailedDetail" = "Version %@ · Check failed, try again later";
 "update.checking" = "Checking for updates…";
 "update.currentVersion" = "Version %@";
-"update.download" = "Download";
+"update.download" = "Install Update";
 "update.noRelease" = "Version %@ · No release published yet";
 "update.recheck" = "Check Again";
 "update.retry" = "Retry";

@@ -26,6 +26,7 @@ final class AppModel: ObservableObject {
   }
 
   private var providers: [ProviderID: any UsageProvider] = [:]
+  private let appUpdater = AppUpdater()
   private let updateChecker = UpdateChecker()
   private let usageHistoryWriter = UsageHistoryWriter()
   private var updateTasks: [ProviderID: Task<Void, Never>] = [:]
@@ -434,9 +435,9 @@ final class AppModel: ObservableObject {
     }
   }
 
-  func openAvailableUpdate() {
-    guard case .available(_, let url) = updateStatus else { return }
-    NSWorkspace.shared.open(url)
+  func installAvailableUpdate() {
+    guard case .available = updateStatus else { return }
+    appUpdater.installAvailableUpdate()
   }
 
   func shutdown() async {

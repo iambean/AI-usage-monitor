@@ -26,7 +26,20 @@ fi
 mkdir -p "$contents/MacOS" "$contents/Resources" "$contents/Helpers"
 cp "$executable" "$contents/MacOS/AIUsageMonitor"
 cp "$collector" "$contents/Helpers/AIUsageCollector"
+install_name_tool \
+    -add_rpath "@executable_path/../Frameworks" \
+    "$contents/MacOS/AIUsageMonitor"
+sparkle_framework="$release_bin/Sparkle.framework"
+if [[ ! -d "$sparkle_framework" ]]; then
+    echo "Sparkle.framework was not produced by SwiftPM" >&2
+    exit 1
+fi
+mkdir -p "$contents/Frameworks"
+ditto "$sparkle_framework" "$contents/Frameworks/Sparkle.framework"
 cp "$project_root/Resources/Info.plist" "$contents/Info.plist"
+cp "$project_root/THIRD_PARTY_NOTICES.md" "$contents/Resources/"
+cp "$project_root/.build/checkouts/Sparkle/LICENSE" \
+    "$contents/Resources/SPARKLE-LICENSE.txt"
 cp "$project_root/Resources/ProviderIcons/"*.png "$contents/Resources/"
 cp -R "$project_root/Resources/Localizations/"*.lproj "$contents/Resources/"
 
@@ -44,9 +57,17 @@ cp "$icon_source" "$iconset/icon_512x512@2x.png"
 iconutil -c icns "$iconset" -o "$contents/Resources/AppIcon.icns"
 
 if [[ "$signing_identity" == "-" ]]; then
+    codesign --force --deep --sign - "$contents/Frameworks/Sparkle.framework"
     codesign --force --sign - "$contents/Helpers/AIUsageCollector"
     codesign --force --sign - "$app_bundle"
 else
+    codesign \
+        --force \
+        --deep \
+        --options runtime \
+        --timestamp \
+        --sign "$signing_identity" \
+        "$contents/Frameworks/Sparkle.framework"
     codesign \
         --force \
         --options runtime \

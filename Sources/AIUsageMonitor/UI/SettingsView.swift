@@ -296,8 +296,8 @@ struct SettingsView: View {
       ProgressView()
         .controlSize(.small)
     case .available:
-      Button(L10n.text("update.download", "前往下载")) {
-        model.openAvailableUpdate()
+      Button(L10n.text("update.download", "安装更新")) {
+        model.installAvailableUpdate()
       }
       .buttonStyle(.borderedProminent)
       .controlSize(.small)
