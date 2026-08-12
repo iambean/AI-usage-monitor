@@ -13,7 +13,7 @@ build=$(
         -c 'Print :CFBundleVersion' \
         "$project_root/Resources/Info.plist"
 )
-archive="$project_root/dist/AI-Usage-$version-arm64-adhoc.zip"
+archive=${SPARKLE_ARCHIVE_PATH:-"$project_root/dist/AI-Usage-$version-arm64-adhoc.zip"}
 appcast=${APPCAST_PATH:-"$project_root/appcast.xml"}
 sign_update=$(
     find "$project_root/.build" \

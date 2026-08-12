@@ -7,14 +7,14 @@
     <language>en</language>
     <item>
       <title>Version 0.3.4</title>
-      <pubDate>Wed, 12 Aug 2026 11:27:03 +0000</pubDate>
+      <pubDate>Wed, 12 Aug 2026 11:32:45 +0000</pubDate>
       <link>https://github.com/iambean/AI-usage-monitor/releases/tag/v0.3.4</link>
       <sparkle:version>19</sparkle:version>
       <sparkle:shortVersionString>0.3.4</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
       <enclosure
         url="https://github.com/iambean/AI-usage-monitor/releases/download/v0.3.4/AI-Usage-0.3.4-arm64-adhoc.zip"
-        length="12"
+        length="3480120"
         type="application/octet-stream"
         sparkle:edSignature="Jx6vTaUWzQ8siCzbiyNS0VcpxsF/Cj5JfmblPA9ur1kuKpMcUyiLoZcIp9KLyY5jRtncHWjZFfid/K7uvlEHBQ==" />
     </item>
