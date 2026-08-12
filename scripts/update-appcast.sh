@@ -44,11 +44,11 @@ signature=$(
     print -r -- "$signature_output" \
         | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p'
 )
-length=$(
-    stat -f '%z' "$archive"
+archive_length=$(
+    wc -c < "$archive" | tr -d '[:space:]'
 )
 
-if [[ -z "$signature" || -z "$length" ]]; then
+if [[ -z "$signature" || -z "$archive_length" ]]; then
     echo "Sparkle signature metadata could not be parsed" >&2
     exit 1
 fi
@@ -62,7 +62,7 @@ awk \
     -v build="$build" \
     -v updated_at="$updated_at" \
     -v download_url="$download_url" \
-    -v length="$length" \
+    -v archive_length="$archive_length" \
     -v signature="$signature" '
       /<item>/ { in_item = 1 }
       /<\/item>/ { in_item = 0; next }
@@ -77,7 +77,7 @@ awk \
         print "      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>"
         print "      <enclosure"
         print "        url=\"" download_url "\""
-        print "        length=\"" length "\""
+        print "        length=\"" archive_length "\""
         print "        type=\"application/octet-stream\""
         print "        sparkle:edSignature=\"" signature "\" />"
         print "    </item>"
