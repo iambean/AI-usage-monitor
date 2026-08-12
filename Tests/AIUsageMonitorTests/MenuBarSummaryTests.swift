@@ -27,6 +27,7 @@ final class MenuBarSummaryTests: XCTestCase {
 
     XCTAssertEqual(MenuBarSummary.displayText(for: [codex, deepSeek]), "72%")
     XCTAssertEqual(MenuBarSummary.displayText(for: [deepSeek, codex]), "¥110.00")
+    XCTAssertEqual(MenuBarSummary.displayText(for: deepSeek), "¥110.00")
   }
 
   func testFormatsResetAsAnAbsoluteDateAndTime() {

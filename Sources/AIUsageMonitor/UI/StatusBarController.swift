@@ -100,7 +100,7 @@ final class StatusBarController: NSObject {
       accessibilityDescription: model.primaryState.name
     )
     button.image?.isTemplate = true
-    button.title = " \(MenuBarSummary.displayText(for: model.providerStates))"
+    button.title = " \(MenuBarSummary.displayText(for: model.primaryState))"
   }
 
   private func showPanel() {

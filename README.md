@@ -7,8 +7,9 @@ English | [简体中文](./README.zh-CN.md)
 A lightweight, native macOS menu bar app for viewing the remaining quota,
 usage windows, or account balance of AI coding services.
 
-Codex is enabled by default. Additional providers can be enabled from Settings,
-and the menu bar always shows a compact summary for the first enabled provider.
+Codex is enabled and selected as the default provider initially. Additional
+providers can be enabled from Settings, where exactly one default provider is
+kept at the top and used for the menu-bar summary.
 
 > [!NOTE]
 > **AI Usage is macOS only.** It supports macOS 13 and later on Apple Silicon
@@ -45,6 +46,7 @@ and the menu bar always shows a compact summary for the first enabled provider.
 
 - Native SwiftUI menu bar experience for macOS 13 and later
 - Compact always-visible usage summary with detailed expandable rows
+- Exactly one default provider, pinned first in Settings and the usage panel and used for the menu-bar summary
 - Five-hour quota is preferred in the menu bar; the panel shows each usage window and its exact reset time
 - The main panel and Settings follow the normal macOS window stacking behavior
 - In-app language switcher for System Default, Simplified Chinese, and English, with Chinese as the fallback

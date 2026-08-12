@@ -19,6 +19,8 @@
 "settings.cursorAdminKeyHelp" = "Only Cursor Teams admin keys are supported. Create one in Cursor Dashboard → Settings → Cursor Admin API Keys.";
 "settings.cursorPersonal" = "Personal";
 "settings.detectedTool" = "Detected automatically · %@";
+"settings.defaultProvider" = "Default provider";
+"settings.makeDefault" = "Make default";
 "settings.launchAtLogin" = "Launch at login";
 "settings.language" = "Language";
 "settings.language.system" = "System Default";

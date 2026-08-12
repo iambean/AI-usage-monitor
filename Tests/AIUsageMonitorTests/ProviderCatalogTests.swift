@@ -65,4 +65,21 @@ final class ProviderCatalogTests: XCTestCase {
       XCTAssertFalse(reason.isEmpty)
     }
   }
+
+  func testPrimaryProviderIsPlacedBeforeCatalogOrderedProviders() {
+    XCTAssertEqual(
+      ProviderOrder.withPrimaryFirst(
+        [.codex, .kimi, .deepseek],
+        primary: .deepseek
+      ),
+      [.deepseek, .codex, .kimi]
+    )
+  }
+
+  func testProviderOrderFallsBackToCatalogWhenPrimaryIsNotEnabled() {
+    XCTAssertEqual(
+      ProviderOrder.withPrimaryFirst([.kimi, .codex], primary: .deepseek),
+      [.codex, .kimi]
+    )
+  }
 }

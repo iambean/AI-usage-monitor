@@ -10,9 +10,9 @@ struct SettingsView: View {
         .font(.system(size: 20, weight: .semibold))
 
       VStack(spacing: 0) {
-        ForEach(ProviderCatalog.all) { metadata in
+        ForEach(orderedProviders) { metadata in
           providerRow(metadata)
-          if metadata.id != ProviderCatalog.all.last?.id {
+          if metadata.id != orderedProviders.last?.id {
             Divider()
               .padding(.leading, 38)
           }
@@ -157,6 +157,38 @@ struct SettingsView: View {
         .font(.system(size: 10))
       }
 
+      if isAvailable(metadata) {
+        Button {
+          model.setPrimaryProvider(metadata.id)
+        } label: {
+          Image(
+            systemName: model.isPrimaryProvider(metadata.id)
+              ? "star.fill"
+              : "star"
+          )
+          .font(.system(size: 11, weight: .medium))
+          .frame(width: 22, height: 22)
+          .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(
+          model.isPrimaryProvider(metadata.id)
+            ? Color.accentColor
+            : Color.secondary
+        )
+        .disabled(!model.isProviderEnabled(metadata.id))
+        .help(
+          model.isPrimaryProvider(metadata.id)
+            ? L10n.text("settings.defaultProvider", "默认项")
+            : L10n.text("settings.makeDefault", "设为默认项")
+        )
+        .accessibilityLabel(
+          model.isPrimaryProvider(metadata.id)
+            ? L10n.text("settings.defaultProvider", "默认项")
+            : L10n.text("settings.makeDefault", "设为默认项")
+        )
+      }
+
       Toggle(
         "",
         isOn: Binding(
@@ -175,7 +207,10 @@ struct SettingsView: View {
       .labelsHidden()
       .toggleStyle(.switch)
       .controlSize(.small)
-      .disabled(!isAvailable(metadata))
+      .disabled(
+        !isAvailable(metadata)
+          || (model.isPrimaryProvider(metadata.id) && model.enabledProviderIDs.count == 1)
+      )
     }
     .padding(.vertical, 9)
   }
@@ -214,6 +249,11 @@ struct SettingsView: View {
   private func isAvailable(_ metadata: ProviderMetadata) -> Bool {
     if case .available = metadata.availability { return true }
     return false
+  }
+
+  private var orderedProviders: [ProviderMetadata] {
+    let primary = ProviderCatalog.metadata(for: model.primaryProviderID)
+    return [primary] + ProviderCatalog.all.filter { $0.id != primary.id }
   }
 
   private func requiresCredential(_ metadata: ProviderMetadata) -> Bool {

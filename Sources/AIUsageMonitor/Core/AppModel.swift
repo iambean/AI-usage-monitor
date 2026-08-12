@@ -6,6 +6,7 @@ import ServiceManagement
 final class AppModel: ObservableObject {
   @Published private(set) var providerStates: [ProviderUsageState]
   @Published private(set) var enabledProviderIDs: [ProviderID]
+  @Published private(set) var primaryProviderID: ProviderID
   @Published private(set) var launchAtLoginEnabled: Bool
   @Published private(set) var launchAtLoginError: String?
   @Published private(set) var detectedExecutablePaths: [ProviderID: String]
@@ -37,8 +38,15 @@ final class AppModel: ObservableObject {
 
   init() {
     appLanguage = AppLanguageStore.load()
-    let enabled = ProviderSettingsStore.enabledProviderIDs()
+    var enabled = ProviderSettingsStore.enabledProviderIDs()
+    let primary = ProviderSettingsStore.primaryProviderID(
+      enabledProviderIDs: enabled
+    )
+    enabled = ProviderOrder.withPrimaryFirst(enabled, primary: primary)
     enabledProviderIDs = enabled
+    primaryProviderID = primary
+    ProviderSettingsStore.setEnabledProviderIDs(enabled)
+    ProviderSettingsStore.setPrimaryProviderID(primary)
     let cached = UsageCacheStore.load()
     providerStates = enabled.map { id in
       cached.first(where: { $0.id == id }) ?? .loading(id)
@@ -86,7 +94,7 @@ final class AppModel: ObservableObject {
   }
 
   var primaryState: ProviderUsageState {
-    providerStates.first ?? .loading(.codex)
+    state(for: primaryProviderID) ?? .loading(primaryProviderID)
   }
 
   var qoderConfiguration: QoderConfiguration {
@@ -99,6 +107,21 @@ final class AppModel: ObservableObject {
 
   func isProviderEnabled(_ id: ProviderID) -> Bool {
     enabledProviderIDs.contains(id)
+  }
+
+  func isPrimaryProvider(_ id: ProviderID) -> Bool {
+    primaryProviderID == id
+  }
+
+  func setPrimaryProvider(_ id: ProviderID) {
+    guard enabledProviderIDs.contains(id), primaryProviderID != id else { return }
+    primaryProviderID = id
+    ProviderSettingsStore.setPrimaryProviderID(id)
+    orderEnabledProviders()
+    orderStates()
+    ProviderSettingsStore.setEnabledProviderIDs(enabledProviderIDs)
+    UsageCacheStore.save(providerStates)
+    applyRefreshRoles()
   }
 
   func hasCredential(_ id: ProviderID) -> Bool {
@@ -219,7 +242,13 @@ final class AppModel: ObservableObject {
       }
       applyRefreshRoles()
     } else {
+      guard enabledProviderIDs.count > 1 else { return }
       enabledProviderIDs.removeAll(where: { $0 == id })
+      if primaryProviderID == id {
+        primaryProviderID = enabledProviderIDs.first ?? .codex
+        ProviderSettingsStore.setPrimaryProviderID(primaryProviderID)
+      }
+      orderEnabledProviders()
       ProviderSettingsStore.setEnabledProviderIDs(enabledProviderIDs)
       stop(id)
       providerStates.removeAll(where: { $0.id == id })
@@ -528,8 +557,7 @@ final class AppModel: ObservableObject {
 
   private func refreshPrimary() {
     guard
-      let primaryID = enabledProviderIDs.first,
-      let provider = providers[primaryID]
+      let provider = providers[primaryProviderID]
     else {
       return
     }
@@ -548,7 +576,7 @@ final class AppModel: ObservableObject {
   }
 
   private func refreshRole(for id: ProviderID) -> ProviderRefreshRole {
-    if id == enabledProviderIDs.first {
+    if id == primaryProviderID {
       return lowPowerModeEnabled ? .lowPowerPrimary : .primary
     }
     return lowPowerModeEnabled ? .suspended : .secondary
@@ -654,10 +682,10 @@ final class AppModel: ObservableObject {
   }
 
   private func orderEnabledProviders() {
-    enabledProviderIDs.sort {
-      let order = ProviderCatalog.all.map(\.id)
-      return order.firstIndex(of: $0)! < order.firstIndex(of: $1)!
-    }
+    enabledProviderIDs = ProviderOrder.withPrimaryFirst(
+      enabledProviderIDs,
+      primary: primaryProviderID
+    )
   }
 
   private func orderStates() {
@@ -695,6 +723,7 @@ final class AppModel: ObservableObject {
     )
     return result
   }
+
 }
 
 enum ConfigurationError: LocalizedError {

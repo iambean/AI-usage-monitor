@@ -19,6 +19,8 @@
 "settings.cursorAdminKeyHelp" = "仅支持 Cursor Teams 管理员密钥；请在 Cursor Dashboard → Settings → Cursor Admin API Keys 中创建。";
 "settings.cursorPersonal" = "个人";
 "settings.detectedTool" = "已自动找到 · %@";
+"settings.defaultProvider" = "默认项";
+"settings.makeDefault" = "设为默认项";
 "settings.launchAtLogin" = "登录时启动";
 "settings.language" = "语言";
 "settings.language.system" = "跟随系统";
