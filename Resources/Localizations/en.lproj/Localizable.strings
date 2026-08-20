@@ -69,6 +69,7 @@
 "usage.cycle" = "Cycle";
 "usage.days" = "%d days";
 "usage.fiveHours" = "5 hours";
+"usage.week" = "Week";
 "usage.hours" = "%d hours";
 "usage.minutes" = "%d minutes";
 "usage.monthly" = "Monthly";

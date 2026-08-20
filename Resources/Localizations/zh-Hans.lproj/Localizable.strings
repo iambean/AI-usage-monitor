@@ -69,6 +69,7 @@
 "usage.cycle" = "周期";
 "usage.days" = "%d 天";
 "usage.fiveHours" = "5 小时";
+"usage.week" = "周";
 "usage.hours" = "%d 小时";
 "usage.minutes" = "%d 分钟";
 "usage.monthly" = "月度";

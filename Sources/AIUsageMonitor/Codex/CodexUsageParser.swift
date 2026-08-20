@@ -35,7 +35,7 @@ enum CodexUsageParser {
       name: "Codex",
       symbolName: "c.circle.fill",
       status: .connected,
-      summary: ProviderUsageState.preferredSummary(in: metrics),
+      summary: ProviderUsageState.preferredSummary(for: .codex, in: metrics),
       metrics: metrics,
       updatedAt: now,
       message: nil
@@ -62,7 +62,10 @@ enum CodexUsageParser {
     }
 
     current.status = .connected
-    current.summary = ProviderUsageState.preferredSummary(in: current.metrics)
+    current.summary = ProviderUsageState.preferredSummary(
+      for: .codex,
+      in: current.metrics
+    )
     current.updatedAt = now
     current.message = nil
     return current

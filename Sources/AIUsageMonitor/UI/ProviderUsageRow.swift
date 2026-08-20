@@ -28,45 +28,7 @@ struct ProviderUsageRow: View {
         .font(.system(size: 10))
         .padding(.leading, 34)
       } else {
-        LazyVGrid(
-          columns: [
-            GridItem(.flexible(), spacing: 8),
-            GridItem(.flexible(), spacing: 8),
-          ],
-          alignment: .leading,
-          spacing: 8
-        ) {
-          ForEach(state.displayMetrics) { metric in
-            VStack(alignment: .leading, spacing: 3) {
-              Text(metric.label)
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-
-              Text(metric.value.displayText)
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .foregroundStyle(.primary)
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-
-              if let resetText = resetText(metric) {
-                Text(resetText)
-                  .font(.system(size: 9))
-                  .foregroundStyle(.tertiary)
-                  .lineLimit(1)
-                  .minimumScaleFactor(0.75)
-              }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(8)
-            .background(
-              RoundedRectangle(cornerRadius: 7)
-                .fill(Color.primary.opacity(0.045))
-            )
-          }
-        }
-        .padding(.leading, 34)
+        metricsContent
       }
 
       if let fraction = visibleSummary?.availableFraction {
@@ -144,6 +106,167 @@ struct ProviderUsageRow: View {
 
   private var visibleSummary: UsageValue? {
     canShowUsage ? state.defaultSummary : nil
+  }
+
+  @ViewBuilder
+  private var metricsContent: some View {
+    if state.id == .codex {
+      codexMetricsRow
+    } else {
+      defaultMetricsGrid
+    }
+  }
+
+  private var defaultMetricsGrid: some View {
+    LazyVGrid(
+      columns: [
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8),
+      ],
+      alignment: .leading,
+      spacing: 8
+    ) {
+      ForEach(state.displayMetrics) { metric in
+        metricCard(metric)
+      }
+    }
+    .padding(.leading, 34)
+  }
+
+  private var codexMetricsRow: some View {
+    HStack(alignment: .top, spacing: 8) {
+      codexDefaultCard
+        .frame(width: 116)
+      codexSparkCard
+        .frame(maxWidth: .infinity)
+    }
+    .fixedSize(horizontal: false, vertical: true)
+    .padding(.leading, 34)
+  }
+
+  private var codexDefaultCard: some View {
+    VStack(alignment: .leading, spacing: 3) {
+      Text(defaultMetricTitle)
+        .font(.system(size: 10))
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+
+      Text(state.codexDefaultMetric?.value.displayText ?? "—")
+        .font(.system(size: 14, weight: .semibold, design: .rounded))
+        .foregroundStyle(.primary)
+        .monospacedDigit()
+        .lineLimit(1)
+
+      compactResetText(state.codexDefaultMetric)
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    .padding(8)
+    .background(metricCardBackground)
+  }
+
+  private var codexSparkCard: some View {
+    VStack(alignment: .leading, spacing: 4) {
+      Text("Spark")
+        .font(.system(size: 10))
+        .foregroundStyle(.secondary)
+
+      if state.codexSparkMetrics.isEmpty {
+        Text("—")
+          .font(.system(size: 14, weight: .semibold, design: .rounded))
+          .foregroundStyle(.primary)
+      } else {
+        HStack(alignment: .top, spacing: 8) {
+          ForEach(
+            Array(state.codexSparkMetrics.enumerated()),
+            id: \.element.id
+          ) { index, metric in
+            if index > 0 {
+              Divider()
+            }
+            compactSparkMetric(metric)
+          }
+        }
+      }
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    .padding(8)
+    .background(metricCardBackground)
+  }
+
+  private func metricCard(_ metric: UsageMetric) -> some View {
+    VStack(alignment: .leading, spacing: 3) {
+      Text(metric.label)
+        .font(.system(size: 10))
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+
+      Text(metric.value.displayText)
+        .font(.system(size: 14, weight: .semibold, design: .rounded))
+        .foregroundStyle(.primary)
+        .monospacedDigit()
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+
+      if let resetText = resetText(metric) {
+        Text(resetText)
+          .font(.system(size: 9))
+          .foregroundStyle(.tertiary)
+          .lineLimit(1)
+          .minimumScaleFactor(0.75)
+      }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(8)
+    .background(metricCardBackground)
+  }
+
+  private func compactSparkMetric(_ metric: UsageMetric) -> some View {
+    VStack(alignment: .leading, spacing: 2) {
+      Text(compactPeriodLabel(metric))
+        .font(.system(size: 9))
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+
+      Text(metric.value.displayText)
+        .font(.system(size: 13, weight: .semibold, design: .rounded))
+        .foregroundStyle(.primary)
+        .monospacedDigit()
+        .lineLimit(1)
+
+      compactResetText(metric)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  private func compactResetText(_ metric: UsageMetric?) -> some View {
+    Text(metric.flatMap(resetText) ?? " ")
+      .font(.system(size: 8))
+      .foregroundStyle(.tertiary)
+      .lineLimit(1)
+      .minimumScaleFactor(0.6)
+  }
+
+  private var defaultMetricTitle: String {
+    guard let metric = state.codexDefaultMetric else { return "Default" }
+    return "Default · \(compactPeriodLabel(metric))"
+  }
+
+  private func compactPeriodLabel(_ metric: UsageMetric) -> String {
+    switch metric.period {
+    case .fiveHour:
+      return L10n.text("usage.fiveHours", "5 小时")
+    case .weekly:
+      return L10n.text("usage.week", "周")
+    case .monthly:
+      return L10n.text("usage.monthly", "月度")
+    case .other, nil:
+      return metric.label.replacingOccurrences(of: "Spark · ", with: "")
+    }
+  }
+
+  private var metricCardBackground: some View {
+    RoundedRectangle(cornerRadius: 7)
+      .fill(Color.primary.opacity(0.045))
   }
 
   private var canShowUsage: Bool {

@@ -3,6 +3,38 @@ import XCTest
 @testable import AIUsageMonitor
 
 final class MenuBarSummaryTests: XCTestCase {
+  func testCodexMenuBarUsesOnlyDefaultLimitAndNeverSpark() {
+    let state = ProviderUsageState(
+      id: .codex,
+      name: "Codex",
+      symbolName: "c.circle.fill",
+      status: .connected,
+      summary: .availablePercent(100),
+      metrics: [
+        UsageMetric(
+          id: "codex_bengalfox.primary",
+          label: "Spark · 5 hours",
+          value: .availablePercent(100),
+          resetsAt: nil,
+          resetDescription: nil,
+          period: .fiveHour
+        ),
+        UsageMetric(
+          id: "codex.secondary",
+          label: "Cycle",
+          value: .availablePercent(5),
+          resetsAt: nil,
+          resetDescription: nil,
+          period: .weekly
+        ),
+      ],
+      updatedAt: nil,
+      message: nil
+    )
+
+    XCTAssertEqual(MenuBarSummary.displayText(for: state), "5%")
+  }
+
   func testOnlyUsesTheFirstEnabledProviderDefaultValue() {
     let codex = ProviderUsageState(
       id: .codex,
@@ -10,7 +42,16 @@ final class MenuBarSummaryTests: XCTestCase {
       symbolName: "c.circle.fill",
       status: .connected,
       summary: .availablePercent(72),
-      metrics: [],
+      metrics: [
+        UsageMetric(
+          id: "codex.secondary",
+          label: "Cycle",
+          value: .availablePercent(72),
+          resetsAt: nil,
+          resetDescription: nil,
+          period: .weekly
+        )
+      ],
       updatedAt: nil,
       message: nil
     )

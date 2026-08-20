@@ -405,10 +405,51 @@ struct ProviderUsageState: Identifiable, Codable, Sendable, Equatable {
 
   var defaultSummary: UsageValue? {
     guard status == .connected || status == .stale else { return nil }
+    if id == .codex {
+      return codexDefaultMetric?.value
+    }
     return Self.preferredSummary(in: metrics) ?? summary
   }
 
+  var codexDefaultMetric: UsageMetric? {
+    guard id == .codex else { return nil }
+    return Self.preferredMetric(
+      in: metrics.filter(Self.isCodexDefaultMetric)
+    )
+  }
+
+  var codexSparkMetrics: [UsageMetric] {
+    guard id == .codex else { return [] }
+    return Self.sortedMetrics(
+      metrics.filter(Self.isCodexSparkMetric)
+    )
+  }
+
   var displayMetrics: [UsageMetric] {
+    Self.sortedMetrics(metrics)
+  }
+
+  static func preferredSummary(
+    for providerID: ProviderID,
+    in metrics: [UsageMetric]
+  ) -> UsageValue? {
+    if providerID == .codex {
+      return preferredMetric(in: metrics.filter(isCodexDefaultMetric))?.value
+    }
+    return preferredSummary(in: metrics)
+  }
+
+  static func preferredSummary(in metrics: [UsageMetric]) -> UsageValue? {
+    preferredMetric(in: metrics)?.value
+  }
+
+  private static func preferredMetric(in metrics: [UsageMetric]) -> UsageMetric? {
+    metrics.first(where: { periodKind(for: $0) == .fiveHour })
+      ?? metrics.first(where: { periodKind(for: $0) == .weekly })
+      ?? metrics.first
+  }
+
+  private static func sortedMetrics(_ metrics: [UsageMetric]) -> [UsageMetric] {
     metrics.enumerated()
       .sorted { lhs, rhs in
         let lhsPriority = Self.displayPriority(Self.periodKind(for: lhs.element))
@@ -420,10 +461,14 @@ struct ProviderUsageState: Identifiable, Codable, Sendable, Equatable {
       .map(\.element)
   }
 
-  static func preferredSummary(in metrics: [UsageMetric]) -> UsageValue? {
-    metrics.first(where: { periodKind(for: $0) == .fiveHour })?.value
-      ?? metrics.first(where: { periodKind(for: $0) == .weekly })?.value
-      ?? metrics.first?.value
+  private static func isCodexDefaultMetric(_ metric: UsageMetric) -> Bool {
+    metric.id.lowercased().split(separator: ".").first == "codex"
+  }
+
+  private static func isCodexSparkMetric(_ metric: UsageMetric) -> Bool {
+    let id = metric.id.lowercased()
+    return id.split(separator: ".").first == "codex_bengalfox"
+      || metric.label.localizedCaseInsensitiveContains("Spark")
   }
 
   private static func periodKind(for metric: UsageMetric) -> UsagePeriodKind? {

@@ -75,19 +75,14 @@ final class UsageHistoryStoreTests: XCTestCase {
       point(value: 90, date: start),
       point(value: 80, date: start.addingTimeInterval(600)),
     ]
+    let chartData = UsageTrendChartData(points: points)
 
     XCTAssertEqual(
-      UsageTrendSelection.nearestTimestamp(
-        to: start.addingTimeInterval(240),
-        in: points
-      ),
+      chartData.nearestTimestamp(to: start.addingTimeInterval(240)),
       start
     )
     XCTAssertEqual(
-      UsageTrendSelection.nearestTimestamp(
-        to: start.addingTimeInterval(420),
-        in: points
-      ),
+      chartData.nearestTimestamp(to: start.addingTimeInterval(420)),
       start.addingTimeInterval(600)
     )
   }
@@ -105,12 +100,48 @@ final class UsageHistoryStoreTests: XCTestCase {
     )
     let fiveHour = point(value: 80, date: start.addingTimeInterval(600))
 
-    let values = UsageTrendSelection.values(
-      at: start.addingTimeInterval(600),
-      in: [weekly, fiveHour]
-    )
+    let chartData = UsageTrendChartData(points: [weekly, fiveHour])
+    let values = chartData.values(at: start.addingTimeInterval(600))
 
     XCTAssertEqual(values.map(\.value).sorted(), [80, 95])
+  }
+
+  func testTrendHoverQueriesRemainFastWithMaximumHistoryVolume() {
+    let start = Date(timeIntervalSince1970: 1_800_000_000)
+    let points = (0..<450).flatMap { index -> [UsageHistoryPoint] in
+      let date = start.addingTimeInterval(TimeInterval(index * 600))
+      return [
+        UsageHistoryPoint(
+          providerID: .codex,
+          metricID: "codex.5h",
+          metricLabel: "5 hours",
+          recordedAt: date,
+          value: Double(100 - index % 100),
+          scale: .percent,
+          unit: "%"
+        ),
+        UsageHistoryPoint(
+          providerID: .codex,
+          metricID: "codex.weekly",
+          metricLabel: "Weekly",
+          recordedAt: date,
+          value: Double(100 - index % 50),
+          scale: .percent,
+          unit: "%"
+        ),
+      ]
+    }
+    let chartData = UsageTrendChartData(points: points)
+
+    let startedAt = CFAbsoluteTimeGetCurrent()
+    for index in 0..<10_000 {
+      let offset = TimeInterval((index * 43) % (450 * 600))
+      let timestamp = chartData.nearestTimestamp(to: start.addingTimeInterval(offset))
+      XCTAssertEqual(chartData.values(at: timestamp).count, 2)
+    }
+    let elapsed = CFAbsoluteTimeGetCurrent() - startedAt
+
+    XCTAssertLessThan(elapsed, 1.0, "悬停查询不应在每次移动时重新分组和排序全部历史点")
   }
 
   private func state(
