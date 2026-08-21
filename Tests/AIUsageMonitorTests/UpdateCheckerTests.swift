@@ -14,11 +14,24 @@ final class UpdateCheckerTests: XCTestCase {
     let suiteName = "UpdateCheckerTests-\(UUID().uuidString)"
     let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
     defer { defaults.removePersistentDomain(forName: suiteName) }
-    let responseURL = URL(string: "https://api.github.com")!
-    let checker = UpdateChecker(defaults: defaults) { _ in
+    let responseURL = URL(
+      string: "https://raw.githubusercontent.com/iambean/AI-usage-monitor/main/appcast.xml"
+    )!
+    let checker = UpdateChecker(defaults: defaults) { request in
+      XCTAssertEqual(request.url, responseURL)
       let data = Data(
         """
-        {"tag_name":"v0.3.0","html_url":"https://github.com/iambean/codex-usage-monitor/releases/tag/v0.3.0"}
+        <?xml version="1.0" encoding="utf-8"?>
+        <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+          <channel>
+            <item>
+              <title>Version 0.3.0</title>
+              <link>https://github.com/iambean/AI-usage-monitor/releases/tag/v0.3.0</link>
+              <sparkle:shortVersionString>0.3.0</sparkle:shortVersionString>
+              <enclosure url="https://github.com/iambean/AI-usage-monitor/releases/download/v0.3.0/AI-Usage-0.3.0-arm64-adhoc.zip" />
+            </item>
+          </channel>
+        </rss>
         """.utf8
       )
       let response = HTTPURLResponse(
@@ -45,7 +58,7 @@ final class UpdateCheckerTests: XCTestCase {
     guard case .available(let version, _) = first else {
       return XCTFail("Expected an available update")
     }
-    XCTAssertEqual(version, "v0.3.0")
+    XCTAssertEqual(version, "0.3.0")
   }
 
   func testReportsRepositoryWithoutReleasesSeparately() async throws {

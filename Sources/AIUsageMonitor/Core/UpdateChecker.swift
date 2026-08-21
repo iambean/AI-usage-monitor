@@ -49,8 +49,8 @@ enum AppUpdateStatus: Equatable {
 actor UpdateChecker {
   typealias Send = @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
-  private static let latestReleaseURL = URL(
-    string: "https://api.github.com/repos/iambean/AI-usage-monitor/releases/latest"
+  private static let appcastURL = URL(
+    string: "https://raw.githubusercontent.com/iambean/AI-usage-monitor/main/appcast.xml"
   )!
   private static let minimumInterval: TimeInterval = 24 * 60 * 60
   private static let lastAttemptKey = "update-last-attempt"
@@ -84,9 +84,12 @@ actor UpdateChecker {
     }
 
     defaults.set(now, forKey: Self.lastAttemptKey)
-    var request = URLRequest(url: Self.latestReleaseURL)
+    var request = URLRequest(url: Self.appcastURL)
     request.timeoutInterval = 15
-    request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+    request.setValue(
+      "application/rss+xml, application/xml;q=0.9, text/xml;q=0.8",
+      forHTTPHeaderField: "Accept"
+    )
     request.setValue("AI-Usage-Update-Checker", forHTTPHeaderField: "User-Agent")
 
     let (data, response) = try await send(request)
@@ -94,23 +97,30 @@ actor UpdateChecker {
       throw UpdateCheckError.invalidResponse
     }
     if response.statusCode == 404 {
-      defaults.removeObject(forKey: Self.latestVersionKey)
-      defaults.removeObject(forKey: Self.latestURLKey)
-      defaults.set(true, forKey: Self.noReleaseKey)
+      cacheNoRelease()
       return .noRelease
     }
     guard (200...299).contains(response.statusCode) else {
       throw UpdateCheckError.invalidResponse
     }
-    let release = try JSONDecoder().decode(Release.self, from: data)
+    guard let release = try AppcastReleaseParser.latestRelease(from: data) else {
+      cacheNoRelease()
+      return .noRelease
+    }
     defaults.removeObject(forKey: Self.noReleaseKey)
-    defaults.set(release.tagName, forKey: Self.latestVersionKey)
-    defaults.set(release.htmlURL.absoluteString, forKey: Self.latestURLKey)
+    defaults.set(release.version, forKey: Self.latestVersionKey)
+    defaults.set(release.url.absoluteString, forKey: Self.latestURLKey)
     return result(
       currentVersion: currentVersion,
-      latestVersion: release.tagName,
-      url: release.htmlURL
+      latestVersion: release.version,
+      url: release.url
     )
+  }
+
+  private func cacheNoRelease() {
+    defaults.removeObject(forKey: Self.latestVersionKey)
+    defaults.removeObject(forKey: Self.latestURLKey)
+    defaults.set(true, forKey: Self.noReleaseKey)
   }
 
   private func cachedResult(currentVersion: String) -> UpdateCheckResult {
@@ -142,14 +152,78 @@ actor UpdateChecker {
     return .upToDate
   }
 
-  private struct Release: Decodable {
-    let tagName: String
-    let htmlURL: URL
+}
 
-    enum CodingKeys: String, CodingKey {
-      case tagName = "tag_name"
-      case htmlURL = "html_url"
+private struct AppcastRelease {
+  let version: String
+  let url: URL
+}
+
+private final class AppcastReleaseParser: NSObject, XMLParserDelegate {
+  private var releases: [AppcastRelease] = []
+  private var isInsideItem = false
+  private var currentText = ""
+  private var currentVersion: String?
+  private var currentLink: URL?
+  private var currentEnclosureURL: URL?
+
+  static func latestRelease(from data: Data) throws -> AppcastRelease? {
+    let delegate = AppcastReleaseParser()
+    let parser = XMLParser(data: data)
+    parser.delegate = delegate
+    guard parser.parse() else {
+      throw UpdateCheckError.invalidResponse
     }
+    return delegate.releases.max {
+      AppVersion($0.version) < AppVersion($1.version)
+    }
+  }
+
+  func parser(
+    _ parser: XMLParser,
+    didStartElement elementName: String,
+    namespaceURI: String?,
+    qualifiedName qName: String?,
+    attributes attributeDict: [String: String] = [:]
+  ) {
+    currentText = ""
+
+    if elementName == "item" {
+      isInsideItem = true
+      currentVersion = nil
+      currentLink = nil
+      currentEnclosureURL = nil
+    } else if isInsideItem, elementName == "enclosure" {
+      currentEnclosureURL = attributeDict["url"].flatMap(URL.init(string:))
+    }
+  }
+
+  func parser(_ parser: XMLParser, foundCharacters string: String) {
+    currentText += string
+  }
+
+  func parser(
+    _ parser: XMLParser,
+    didEndElement elementName: String,
+    namespaceURI: String?,
+    qualifiedName qName: String?
+  ) {
+    let text = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+    if isInsideItem, elementName.hasSuffix("shortVersionString") {
+      currentVersion = text
+    } else if isInsideItem, elementName == "link" {
+      currentLink = URL(string: text)
+    } else if elementName == "item" {
+      if let version = currentVersion,
+        let url = currentLink ?? currentEnclosureURL
+      {
+        releases.append(AppcastRelease(version: version, url: url))
+      }
+      isInsideItem = false
+    }
+
+    currentText = ""
   }
 }
 
