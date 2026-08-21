@@ -9,7 +9,7 @@ struct AvailabilityBar: View {
         Capsule()
           .fill(Color.primary.opacity(0.12))
         Capsule()
-          .fill(Color.primary.opacity(0.78))
+          .fill(availabilityColor)
           .frame(
             width: proxy.size.width * CGFloat(fraction.clamped(to: 0...1))
           )
@@ -23,6 +23,20 @@ struct AvailabilityBar: View {
         Int((fraction * 100).rounded())
       )
     )
+  }
+
+  private var availabilityColor: Color {
+    Color(
+      hue: AvailabilityColorScale.hue(for: fraction),
+      saturation: 0.82,
+      brightness: 0.86
+    )
+  }
+}
+
+enum AvailabilityColorScale {
+  static func hue(for fraction: Double) -> Double {
+    fraction.clamped(to: 0...1) / 3
   }
 }
 

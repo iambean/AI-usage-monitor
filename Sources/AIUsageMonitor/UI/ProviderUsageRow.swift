@@ -68,7 +68,7 @@ struct ProviderUsageRow: View {
 
       Spacer(minLength: 12)
 
-      VStack(alignment: .trailing, spacing: 1) {
+      HStack(alignment: .firstTextBaseline, spacing: 4) {
         Text(visibleSummary?.displayText ?? "—")
           .font(.system(size: 18, weight: .semibold, design: .rounded))
           .monospacedDigit()
@@ -76,6 +76,7 @@ struct ProviderUsageRow: View {
           .font(.system(size: 9))
           .foregroundStyle(.tertiary)
       }
+      .fixedSize(horizontal: true, vertical: false)
     }
     .frame(maxWidth: .infinity)
     .contentShape(Rectangle())
@@ -130,7 +131,6 @@ struct ProviderUsageRow: View {
         metricCard(metric)
       }
     }
-    .padding(.leading, 34)
   }
 
   private var codexMetricsRow: some View {
@@ -141,14 +141,13 @@ struct ProviderUsageRow: View {
         .frame(maxWidth: .infinity)
     }
     .fixedSize(horizontal: false, vertical: true)
-    .padding(.leading, 34)
   }
 
   private var codexDefaultCard: some View {
     VStack(alignment: .leading, spacing: 3) {
       Text(defaultMetricTitle)
         .font(.system(size: 10))
-        .foregroundStyle(.secondary)
+        .foregroundStyle(codexSecondaryTextColor)
         .lineLimit(1)
 
       Text(state.codexDefaultMetric?.value.displayText ?? "—")
@@ -161,14 +160,14 @@ struct ProviderUsageRow: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     .padding(8)
-    .background(metricCardBackground)
+    .background(codexMetricCardBackground)
   }
 
   private var codexSparkCard: some View {
     VStack(alignment: .leading, spacing: 4) {
       Text("Spark")
         .font(.system(size: 10))
-        .foregroundStyle(.secondary)
+        .foregroundStyle(codexSecondaryTextColor)
 
       if state.codexSparkMetrics.isEmpty {
         Text("—")
@@ -190,7 +189,7 @@ struct ProviderUsageRow: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     .padding(8)
-    .background(metricCardBackground)
+    .background(codexMetricCardBackground)
   }
 
   private func metricCard(_ metric: UsageMetric) -> some View {
@@ -224,7 +223,7 @@ struct ProviderUsageRow: View {
     VStack(alignment: .leading, spacing: 2) {
       Text(compactPeriodLabel(metric))
         .font(.system(size: 9))
-        .foregroundStyle(.secondary)
+        .foregroundStyle(codexSecondaryTextColor)
         .lineLimit(1)
 
       Text(metric.value.displayText)
@@ -241,7 +240,7 @@ struct ProviderUsageRow: View {
   private func compactResetText(_ metric: UsageMetric?) -> some View {
     Text(metric.flatMap(resetText) ?? " ")
       .font(.system(size: 8))
-      .foregroundStyle(.tertiary)
+      .foregroundStyle(codexTertiaryTextColor)
       .lineLimit(1)
       .minimumScaleFactor(0.6)
   }
@@ -267,6 +266,23 @@ struct ProviderUsageRow: View {
   private var metricCardBackground: some View {
     RoundedRectangle(cornerRadius: 7)
       .fill(Color.primary.opacity(0.045))
+  }
+
+  private var codexMetricCardBackground: some View {
+    RoundedRectangle(cornerRadius: 7)
+      .fill(Color.primary.opacity(0.075))
+      .overlay {
+        RoundedRectangle(cornerRadius: 7)
+          .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+      }
+  }
+
+  private var codexSecondaryTextColor: Color {
+    Color.primary.opacity(0.68)
+  }
+
+  private var codexTertiaryTextColor: Color {
+    Color.primary.opacity(0.48)
   }
 
   private var canShowUsage: Bool {
