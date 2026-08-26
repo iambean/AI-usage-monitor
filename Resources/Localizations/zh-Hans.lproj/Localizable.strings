@@ -21,6 +21,7 @@
 "settings.detectedTool" = "已自动找到 · %@";
 "settings.defaultProvider" = "默认项";
 "settings.makeDefault" = "设为默认项";
+"settings.openProviderSubscription" = "打开 %@ 官方订阅页面";
 "settings.launchAtLogin" = "登录时启动";
 "settings.language" = "语言";
 "settings.language.system" = "跟随系统";

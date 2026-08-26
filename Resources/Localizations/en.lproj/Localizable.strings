@@ -21,6 +21,7 @@
 "settings.detectedTool" = "Detected automatically · %@";
 "settings.defaultProvider" = "Default provider";
 "settings.makeDefault" = "Make default";
+"settings.openProviderSubscription" = "Open the official %@ subscription page";
 "settings.launchAtLogin" = "Launch at login";
 "settings.language" = "Language";
 "settings.language.system" = "System Default";

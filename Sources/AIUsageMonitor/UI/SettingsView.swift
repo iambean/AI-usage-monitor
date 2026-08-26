@@ -97,32 +97,24 @@ struct SettingsView: View {
   @ViewBuilder
   private func providerRow(_ metadata: ProviderMetadata) -> some View {
     HStack(spacing: 10) {
-      ProviderIcon(
-        providerID: metadata.id,
-        fallbackSymbolName: metadata.symbolName,
-        size: 23
-      )
-      .frame(width: 22)
-      .opacity(isAvailable(metadata) ? 1 : 0.35)
-
-      VStack(alignment: .leading, spacing: 2) {
-        HStack(spacing: 6) {
-          Text(metadata.name)
-            .font(.system(size: 12, weight: .semibold))
-          if case .unavailable = metadata.availability {
-            Text(L10n.text("status.temporarilyUnavailable", "暂不可用"))
-              .font(.system(size: 9, weight: .medium))
-              .foregroundStyle(.secondary)
-              .padding(.horizontal, 5)
-              .padding(.vertical, 2)
-              .background(Capsule().fill(Color.primary.opacity(0.08)))
-          }
-        }
-        Text(rowDetail(metadata))
-          .font(.system(size: 10))
-          .foregroundStyle(.secondary)
-          .lineLimit(1)
+      Link(destination: ProviderSubscriptionDestination.url(for: metadata.id)) {
+        providerIdentity(metadata)
       }
+      .buttonStyle(.plain)
+      .help(
+        L10n.format(
+          "settings.openProviderSubscription",
+          "打开 %@ 官方订阅页面",
+          metadata.name
+        )
+      )
+      .accessibilityLabel(
+        L10n.format(
+          "settings.openProviderSubscription",
+          "打开 %@ 官方订阅页面",
+          metadata.name
+        )
+      )
 
       Spacer()
 
@@ -213,6 +205,38 @@ struct SettingsView: View {
       )
     }
     .padding(.vertical, 9)
+  }
+
+  private func providerIdentity(_ metadata: ProviderMetadata) -> some View {
+    HStack(spacing: 10) {
+      ProviderIcon(
+        providerID: metadata.id,
+        fallbackSymbolName: metadata.symbolName,
+        size: 23
+      )
+      .frame(width: 22)
+      .opacity(isAvailable(metadata) ? 1 : 0.35)
+
+      VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 6) {
+          Text(metadata.name)
+            .font(.system(size: 12, weight: .semibold))
+          if case .unavailable = metadata.availability {
+            Text(L10n.text("status.temporarilyUnavailable", "暂不可用"))
+              .font(.system(size: 9, weight: .medium))
+              .foregroundStyle(.secondary)
+              .padding(.horizontal, 5)
+              .padding(.vertical, 2)
+              .background(Capsule().fill(Color.primary.opacity(0.08)))
+          }
+        }
+        Text(rowDetail(metadata))
+          .font(.system(size: 10))
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+      }
+    }
+    .contentShape(Rectangle())
   }
 
   private func rowDetail(_ metadata: ProviderMetadata) -> String {
