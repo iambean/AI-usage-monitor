@@ -8,17 +8,14 @@ final class StatusBarController: NSObject {
   private let statusItem: NSStatusItem
   private let panel: PersistentStatusPanel
   private let hostingController: NSHostingController<AnyView>
+  private let panelSizing = MenuPanelSizing()
   private var cancellables: Set<AnyCancellable> = []
 
   init(model: AppModel) {
     self.model = model
     statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
-    let content = AnyView(
-      MenuBarContentView()
-        .environmentObject(model)
-    )
-    hostingController = NSHostingController(rootView: content)
+    hostingController = NSHostingController(rootView: AnyView(EmptyView()))
     panel = PersistentStatusPanel(
       contentRect: NSRect(x: 0, y: 0, width: 350, height: 1),
       styleMask: [.borderless, .nonactivatingPanel],
@@ -27,6 +24,16 @@ final class StatusBarController: NSObject {
     )
 
     super.init()
+
+    hostingController.rootView = AnyView(
+      SizedMenuPanel(
+        sizing: panelSizing, model: model,
+        onContentHeightChange: { [weak self] _ in
+          DispatchQueue.main.async { [weak self] in
+            self?.resizeAndPositionPanel()
+          }
+        })
+    )
 
     configureStatusItem()
     configurePanel()
@@ -75,6 +82,30 @@ final class StatusBarController: NSObject {
   }
 
   private func observeModel() {
+    NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
+      .receive(on: RunLoop.main)
+      .sink { [weak self] _ in self?.resizeAndPositionPanel() }
+      .store(in: &cancellables)
+    NotificationCenter.default.publisher(for: NSWindow.didChangeScreenNotification)
+      .receive(on: RunLoop.main)
+      .sink { [weak self] notification in
+        guard let self, let window = notification.object as? NSWindow,
+          window === self.statusItem.button?.window || window === self.panel
+        else { return }
+        self.resizeAndPositionPanel()
+      }
+      .store(in: &cancellables)
+    NotificationCenter.default.publisher(for: .aiUsageOpenPanel)
+      .receive(on: RunLoop.main)
+      .sink { [weak self] _ in self?.showPanel() }
+      .store(in: &cancellables)
+    model.$preferences
+      .receive(on: RunLoop.main)
+      .sink { [weak self] _ in
+        self?.updateStatusItem()
+        self?.resizeAndPositionPanel()
+      }
+      .store(in: &cancellables)
     model.$providerStates
       .receive(on: RunLoop.main)
       .sink { [weak self] _ in
@@ -100,7 +131,13 @@ final class StatusBarController: NSObject {
       accessibilityDescription: model.primaryState.name
     )
     button.image?.isTemplate = true
-    button.title = " \(MenuBarSummary.displayText(for: model.primaryState))"
+    let state = model.primaryState
+    let selectedID = model.preferences.selectedMetrics[state.id.rawValue]
+    let metric = state.selectedMetric(selectedID)
+    button.title = " " + (metric?.value.compactDisplayText ?? "—")
+    button.toolTip =
+      metric.map { UsagePresentation.caption($0, providerID: state.id) }
+      ?? L10n.text("monitor.windowUnavailable", "窗口暂不可用")
   }
 
   private func showPanel() {
@@ -112,38 +149,35 @@ final class StatusBarController: NSObject {
   }
 
   private func resizeAndPositionPanel() {
-    hostingController.view.layoutSubtreeIfNeeded()
-    let fittingSize = hostingController.view.fittingSize
-    let panelSize = NSSize(
-      width: 350,
-      height: max(fittingSize.height, 1)
-    )
-    panel.setContentSize(panelSize)
-
-    guard
-      let button = statusItem.button,
-      let statusWindow = button.window,
-      let screen = statusWindow.screen ?? NSScreen.main
-    else {
-      return
+    guard let button = statusItem.button, let statusWindow = button.window,
+      let screen = statusWindow.screen ?? panel.screen ?? NSScreen.main
+    else { return }
+    let anchor = statusWindow.convertToScreen(button.convert(button.bounds, to: nil))
+    let geometry = MenuPanelGeometry(anchor: anchor, visibleFrame: screen.visibleFrame)
+    if panelSizing.maximumHeight != geometry.maximumHeight {
+      panelSizing.maximumHeight = geometry.maximumHeight
     }
-
-    let buttonRect = button.convert(button.bounds, to: nil)
-    let buttonFrame = statusWindow.convertToScreen(buttonRect)
-    let visibleFrame = screen.visibleFrame
-    let horizontalPadding: CGFloat = 8
-    let verticalGap: CGFloat = 6
-    let preferredX = buttonFrame.maxX - panelSize.width
-    let x = min(
-      max(preferredX, visibleFrame.minX + horizontalPadding),
-      visibleFrame.maxX - panelSize.width - horizontalPadding
-    )
-    let y = buttonFrame.minY - panelSize.height - verticalGap
-    panel.setFrameOrigin(NSPoint(x: x, y: y))
+    hostingController.view.layoutSubtreeIfNeeded()
+    let frame = geometry.frame(contentHeight: hostingController.view.fittingSize.height)
+    panel.setContentSize(frame.size)
+    panel.setFrameOrigin(frame.origin)
   }
+
 }
 
 private final class PersistentStatusPanel: NSPanel {
   override var canBecomeKey: Bool { true }
   override var canBecomeMain: Bool { false }
+}
+
+private struct SizedMenuPanel: View {
+  @ObservedObject var sizing: MenuPanelSizing
+  let model: AppModel
+  let onContentHeightChange: (CGFloat) -> Void
+  var body: some View {
+    MenuBarContentView(
+      maximumHeight: sizing.maximumHeight, onContentHeightChange: onContentHeightChange
+    )
+    .environmentObject(model)
+  }
 }

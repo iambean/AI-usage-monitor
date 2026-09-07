@@ -9,7 +9,7 @@ usage windows, or account balance of AI coding services.
 
 Codex is enabled and selected as the default provider initially. Additional
 providers can be enabled from Settings, where exactly one default provider is
-kept at the top and used for the menu-bar summary.
+used for the menu-bar summary. Provider order and the displayed window can be customized.
 
 > [!NOTE]
 > **AI Usage is macOS only.** It supports macOS 13 and later on Apple Silicon
@@ -45,17 +45,23 @@ kept at the top and used for the menu-bar summary.
 ## Features
 
 - Native SwiftUI menu bar experience for macOS 13 and later
-- Compact always-visible usage summary with detailed expandable rows
-- Exactly one default provider, pinned first in Settings and the usage panel and used for the menu-bar summary
-- Five-hour quota is preferred in the menu bar; the panel shows each usage window and its exact reset time
+- Menu bar shows only the icon and usage value; click to see details
+- Exactly one default provider for the menu bar, with selectable windows, provider ordering, and collapsible rows
+- Independent quota bars and reset countdowns per window, with exact dates and time zones on hover
+- Codex reset counts and expiry details, with confirmation before redemption and idempotent retries
 - The main panel and Settings follow the normal macOS window stacking behavior
 - In-app language switcher for System Default, Simplified Chinese, and English, with Chinese as the fallback
 - Automatic discovery of locally installed Codex, Claude Code, and Kimi Code
 - Credentials for API-based providers stored in the macOS Keychain
 - Primary-provider polling with hourly secondary refreshes and immediate refresh when the panel opens
-- Automatic polling reduction when macOS Low Power Mode is active
-- Clear unavailable states and recovery suggestions instead of stale cached values after an error
-- Local usage trend charts with 24-hour, 7-day, and 30-day ranges
+- Configurable Low Power Mode polling and wake checks, per-provider refreshes and timestamps
+- Last known data is labeled during transient network failures; authentication or malformed-data failures clear old usage
+- Trends retain flat chart rendering and cached queries, showing all windows and local history by default, including older records without account tags
+- Optional window/source/unit filters, sampling gaps, and quota-change events
+- Explicit exhaustion estimates only when enough recent continuous samples are available
+- Configurable 7/30/90-day retention (up to 10,000 samples), CSV export, and confirmed history clearing
+- Opt-in per-window low-quota, balance, recovery, and reset-expiry notifications, with quiet hours and deduplication
+- Compact layout and system, light, or dark appearance
 - Local, redacted diagnostics export with no third-party telemetry
 - Lightweight GitHub Releases update check, limited to once per day in the background
 - In-app update download, signature verification, installation, and relaunch through Sparkle

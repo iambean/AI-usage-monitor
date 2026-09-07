@@ -8,6 +8,9 @@ struct DiagnosticProviderSnapshot: Codable, Equatable {
   let status: String
   let metricCount: Int
   let updatedAt: Date?
+  let resetCreditsAvailable: Int?
+  let resetCreditsUpdatedAt: Date?
+  let hasAccountIdentity: Bool?
 }
 
 struct DiagnosticProcessSnapshot: Codable, Equatable {
@@ -36,7 +39,8 @@ enum DiagnosticsExporter {
   static func export(
     states: [ProviderUsageState],
     enabledProviderIDs: [ProviderID],
-    lowPowerModeEnabled: Bool
+    lowPowerModeEnabled: Bool,
+    primaryProviderID: ProviderID? = nil
   ) throws -> URL? {
     let panel = NSSavePanel()
     panel.title = L10n.text("diagnostics.exportTitle", "导出诊断包")
@@ -65,7 +69,8 @@ enum DiagnosticsExporter {
     let report = makeReport(
       states: states,
       enabledProviderIDs: enabledProviderIDs,
-      lowPowerModeEnabled: lowPowerModeEnabled
+      lowPowerModeEnabled: lowPowerModeEnabled,
+      primaryProviderID: primaryProviderID
     )
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
@@ -97,6 +102,7 @@ enum DiagnosticsExporter {
     states: [ProviderUsageState],
     enabledProviderIDs: [ProviderID],
     lowPowerModeEnabled: Bool,
+    primaryProviderID: ProviderID? = nil,
     bundle: Bundle = .main,
     processID: Int32 = ProcessInfo.processInfo.processIdentifier
   ) -> DiagnosticReport {
@@ -109,7 +115,7 @@ enum DiagnosticsExporter {
       operatingSystem: ProcessInfo.processInfo.operatingSystemVersionString,
       architecture: currentArchitecture,
       lowPowerModeEnabled: lowPowerModeEnabled,
-      primaryProvider: enabledProviderIDs.first?.rawValue,
+      primaryProvider: (primaryProviderID ?? enabledProviderIDs.first)?.rawValue,
       enabledProviders: enabledProviderIDs.map(\.rawValue),
       providers: states.map {
         DiagnosticProviderSnapshot(
@@ -117,7 +123,10 @@ enum DiagnosticsExporter {
           supportTier: ProviderCatalog.metadata(for: $0.id).supportTier.rawValue,
           status: $0.status.rawValue,
           metricCount: $0.metrics.count,
-          updatedAt: $0.updatedAt
+          updatedAt: $0.updatedAt,
+          resetCreditsAvailable: $0.resetCredits?.availableCount,
+          resetCreditsUpdatedAt: $0.resetCredits?.updatedAt,
+          hasAccountIdentity: $0.accountScope != nil
         )
       },
       processes: processSnapshots(parentPID: processID)

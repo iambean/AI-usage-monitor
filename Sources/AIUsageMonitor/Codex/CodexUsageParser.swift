@@ -38,7 +38,8 @@ enum CodexUsageParser {
       summary: ProviderUsageState.preferredSummary(for: .codex, in: metrics),
       metrics: metrics,
       updatedAt: now,
-      message: nil
+      message: nil,
+      resetCredits: parseResetCredits(root["rateLimitResetCredits"], now: now)
     )
   }
 
@@ -47,10 +48,12 @@ enum CodexUsageParser {
     merging current: ProviderUsageState?,
     now: Date = Date()
   ) -> ProviderUsageState? {
-    guard let rateLimits = params["rateLimits"] else { return nil }
-
-    let wrapped: JSONValue = .object(["rateLimits": rateLimits])
-    guard let update = try? parse(result: wrapped, now: now) else { return nil }
+    let update = try? parse(result: params, now: now)
+    guard let update else {
+      guard params["rateLimitResetCredits"] != nil, var current else { return nil }
+      current.resetCredits = parseResetCredits(params["rateLimitResetCredits"], now: now)
+      return current
+    }
     guard var current else { return update }
 
     for metric in update.metrics {
@@ -68,7 +71,36 @@ enum CodexUsageParser {
     )
     current.updatedAt = now
     current.message = nil
+    // Window-only notifications must not erase or re-date reset-credit details.
+    if params["rateLimitResetCredits"] != nil {
+      current.resetCredits = update.resetCredits
+    }
     return current
+  }
+
+  private static func parseResetCredits(
+    _ value: JSONValue?,
+    now: Date
+  ) -> CodexResetCredits? {
+    guard let object = value?.objectValue,
+      let number = object["availableCount"]?.doubleValue,
+      let count = Int(exactly: number), count >= 0
+    else { return nil }
+
+    let credits: [CodexResetCredit]?
+    if case .array(let rows) = object["credits"] {
+      credits = rows.compactMap { row in
+        guard row["status"]?.stringValue == "available" else { return nil }
+        let expiresAt = row["expiresAt"]?.doubleValue.flatMap { timestamp -> Date? in
+          guard timestamp.isFinite else { return nil }
+          return Date(timeIntervalSince1970: timestamp)
+        }
+        return CodexResetCredit(expiresAt: expiresAt)
+      }
+    } else {
+      credits = nil
+    }
+    return CodexResetCredits(availableCount: count, credits: credits, updatedAt: now)
   }
 
   private static func rateLimitSnapshots(

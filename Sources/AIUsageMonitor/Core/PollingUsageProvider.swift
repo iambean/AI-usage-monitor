@@ -84,7 +84,7 @@ actor PollingUsageProvider: UsageProvider {
 
   @discardableResult
   private func performRefresh(bypassingManualThrottle: Bool) async -> Bool {
-    guard !isRefreshing else { return false }
+    guard isStarted, !isRefreshing else { return false }
     let now = Date()
     if !bypassingManualThrottle,
       let lastAttemptAt,
@@ -105,13 +105,7 @@ actor PollingUsageProvider: UsageProvider {
       return true
     } catch {
       consecutiveFailures += 1
-      let state = (currentState ?? .loading(metadata.id)).failed(
-        message: error.localizedDescription,
-        recoverySuggestion: ProviderRecoverySuggestion.text(
-          for: error,
-          providerID: metadata.id
-        )
-      )
+      let state = (currentState ?? .loading(metadata.id)).handlingFailure(error)
       currentState = state
       continuation?.yield(state)
       return false

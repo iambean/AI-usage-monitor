@@ -2,9 +2,30 @@ import SwiftUI
 
 struct SettingsView: View {
   @EnvironmentObject private var model: AppModel
+  @State private var selectedSection = 0
   @State private var configurationProvider: ProviderID?
 
   var body: some View {
+    VStack(spacing: 8) {
+      Picker(L10n.text("settings.title", "AI 用量设置"), selection: $selectedSection) {
+        Text(L10n.text("monitor.sources", "数据源")).tag(0)
+        Text(L10n.text("monitor.displayAndData", "显示与数据")).tag(1)
+        Text(L10n.text("monitor.alertSettings", "提醒")).tag(2)
+      }
+      .labelsHidden()
+      .pickerStyle(.segmented)
+      .padding(.horizontal, 12)
+      switch selectedSection {
+      case 1: MonitorGeneralSettingsView().environmentObject(model)
+      case 2: MonitorNotificationSettingsView().environmentObject(model)
+      default: ScrollView { providersContent }
+      }
+    }
+    .padding(12)
+    .frame(width: 620, height: 660)
+  }
+
+  private var providersContent: some View {
     VStack(alignment: .leading, spacing: 18) {
       Text(L10n.text("settings.title", "AI 用量设置"))
         .font(.system(size: 20, weight: .semibold))
@@ -149,6 +170,23 @@ struct SettingsView: View {
         .font(.system(size: 10))
       }
 
+      if model.isProviderEnabled(metadata.id) {
+        VStack(spacing: 2) {
+          Button {
+            model.moveProvider(metadata.id, offset: -1)
+          } label: {
+            Image(systemName: "chevron.up")
+          }.disabled(model.enabledProviderIDs.first == metadata.id)
+          Button {
+            model.moveProvider(metadata.id, offset: 1)
+          } label: {
+            Image(systemName: "chevron.down")
+          }.disabled(model.enabledProviderIDs.last == metadata.id)
+        }
+        .buttonStyle(.plain)
+        .font(.system(size: 9))
+        .accessibilityLabel(L10n.format("monitor.reorderProvider", "调整 %@ 顺序", metadata.name))
+      }
       if isAvailable(metadata) {
         Button {
           model.setPrimaryProvider(metadata.id)
@@ -252,6 +290,12 @@ struct SettingsView: View {
         "个人版仅支持打开官方 Usage 页面"
       )
     }
+    if let state = model.state(for: metadata.id), let date = state.updatedAt {
+      return [
+        state.accountLabel, state.status == .stale ? L10n.text("status.lastData", "上次数据") : nil,
+        UsagePresentation.updatedText(date),
+      ].compactMap { $0 }.joined(separator: " · ")
+    }
     if let path = model.detectedExecutablePaths[metadata.id] {
       return L10n.format(
         "settings.detectedTool",
@@ -276,8 +320,8 @@ struct SettingsView: View {
   }
 
   private var orderedProviders: [ProviderMetadata] {
-    let primary = ProviderCatalog.metadata(for: model.primaryProviderID)
-    return [primary] + ProviderCatalog.all.filter { $0.id != primary.id }
+    model.enabledProviderIDs.map(ProviderCatalog.metadata)
+      + ProviderCatalog.all.filter { !model.enabledProviderIDs.contains($0.id) }
   }
 
   private func requiresCredential(_ metadata: ProviderMetadata) -> Bool {

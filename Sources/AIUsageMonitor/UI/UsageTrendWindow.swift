@@ -34,16 +34,68 @@ private enum UsageTrendRange: String, CaseIterable, Identifiable {
 
 struct UsageTrendView: View {
   @EnvironmentObject private var model: AppModel
+  var onProjectionChange: ((UsageTrendProjection) -> Void)?
+  var onViewportBoundsChange: ((CGRect, CGRect) -> Void)?
   @State private var selectedProviderID = ProviderID.codex
   @State private var selectedRange = UsageTrendRange.week
-  @State private var chartData = UsageTrendChartData.empty
+  @State private var selectedWindowID = ""
+  @State private var selectedAccountID = UsageTrendAccountOption.all
+  @State private var projection = UsageTrendProjection.empty
   @State private var hoverState = UsageTrendHoverState()
+  @State private var contentHeight: CGFloat = 0
 
   var body: some View {
+    GeometryReader { viewport in
+      let needsScrolling = contentHeight > viewport.size.height + 0.5
+      ScrollView(.vertical, showsIndicators: needsScrolling) {
+        content
+          .frame(minHeight: viewport.size.height, alignment: .topLeading)
+          .fixedSize(horizontal: false, vertical: true)
+          .frame(maxWidth: .infinity, alignment: .topLeading)
+          .background {
+            GeometryReader { geometry in
+              Color.clear.preference(
+                key: UsageTrendContentHeightKey.self, value: geometry.size.height)
+            }
+          }
+      }
+      .scrollDisabled(!needsScrolling)
+      .onPreferenceChange(UsageTrendContentHeightKey.self) { contentHeight = $0 }
+      .onChange(of: viewport.size) { _ in hoverState.clear() }
+    }
+    .frame(minWidth: 680, minHeight: 600)
+    .onPreferenceChange(UsageTrendViewportBoundsKey.self) { bounds in
+      if let title = bounds["title"], let footer = bounds["footer"] {
+        onViewportBoundsChange?(title, footer)
+      }
+    }
+    .onAppear(perform: synchronizeSelection)
+    .onAppear(perform: rebuildChartData)
+    .onChange(of: providerIDs) { _ in
+      synchronizeSelection()
+    }
+    .onChange(of: selectedProviderID) { _ in
+      selectedWindowID = ""
+      selectedAccountID = UsageTrendAccountOption.all
+      hoverState.clear()
+      rebuildChartData()
+    }
+    .onChange(of: selectedRange) { _ in
+      hoverState.clear()
+      rebuildChartData()
+    }
+    .onChange(of: model.usageHistory) { _ in
+      rebuildChartData()
+    }
+  }
+
+  private var content: some View {
     VStack(alignment: .leading, spacing: 16) {
       HStack(spacing: 12) {
         Text(L10n.text("trends.title", "用量趋势"))
+          .accessibilityIdentifier("usage-trend-title")
           .font(.system(size: 20, weight: .semibold))
+          .background(viewportBounds("title"))
 
         Spacer()
 
@@ -68,6 +120,41 @@ struct UsageTrendView: View {
           .labelsHidden()
           .pickerStyle(.segmented)
           .frame(width: 220)
+        }
+      }
+
+      if !projection.windows.isEmpty {
+        Picker(
+          L10n.text("monitor.trendWindow", "额度窗口"),
+          selection: Binding(
+            get: { projection.selectedWindowID },
+            set: {
+              selectedWindowID = $0
+              rebuildChartData()
+            }
+          )
+        ) {
+          ForEach(projection.windows) { option in
+            Text([option.title, option.unit].compactMap { $0 }.joined(separator: " · ")).tag(
+              option.id)
+          }
+        }
+        if projection.accounts.count > 1 {
+          Picker(
+            L10n.text("trends.accountScope", "记录来源"),
+            selection: Binding(
+              get: { projection.selectedAccountID },
+              set: {
+                selectedAccountID = $0
+                rebuildChartData()
+              }
+            )
+          ) {
+            Text(L10n.text("trends.allLocalHistory", "全部本机记录")).tag(UsageTrendAccountOption.all)
+            ForEach(projection.accounts) { account in
+              Text(accountTitle(account)).tag(account.id)
+            }
+          }
         }
       }
 
@@ -116,35 +203,52 @@ struct UsageTrendView: View {
         }
 
         trendChart
-          .frame(minHeight: 280)
+          .frame(minHeight: 250)
+        if model.preferences.showForecast {
+          Text(forecastText)
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+        }
+        if !visibleEvents.isEmpty {
+          VStack(alignment: .leading, spacing: 4) {
+            ForEach(Array(visibleEvents.suffix(4))) { event in
+              Text(UsageTrendFormatting.dateText(event.date) + " · " + event.kind.title)
+                .font(.system(size: 10)).foregroundStyle(.secondary)
+            }
+          }
+        }
+        if chartData.segments.count > 1 {
+          Text(L10n.text("monitor.chartGaps", "曲线空档表示采样中断或记录来源变化。"))
+            .font(.system(size: 10)).foregroundStyle(.secondary)
+        }
       }
 
+      HStack {
+        Text(L10n.format("trends.sampleCount", "当前视图 %d 条记录", chartData.points.count))
+          .accessibilityIdentifier("usage-trend-sample-count")
+        if projection.includesLegacy {
+          Text(L10n.text("trends.legacyIncluded", "含未标记账户的旧记录"))
+        }
+      }
+      .font(.system(size: 10))
+      .foregroundStyle(.secondary)
+
       Text(
-        L10n.text(
-          "trends.recordingNote",
-          "仅保存在本机，最多保留 30 天成功刷新记录"
-        )
+        L10n.format(
+          "monitor.recordingNote", "仅保存在本机，最多保留 %d 天成功刷新记录", model.preferences.retentionDays)
       )
       .font(.system(size: 10))
       .foregroundStyle(.tertiary)
+      .accessibilityIdentifier("usage-trend-footer")
+      .background(viewportBounds("footer"))
     }
     .padding(24)
-    .frame(minWidth: 680, minHeight: 440)
-    .onAppear(perform: synchronizeSelection)
-    .onAppear(perform: rebuildChartData)
-    .onChange(of: providerIDs) { _ in
-      synchronizeSelection()
-    }
-    .onChange(of: selectedProviderID) { _ in
-      hoverState.clear()
-      rebuildChartData()
-    }
-    .onChange(of: selectedRange) { _ in
-      hoverState.clear()
-      rebuildChartData()
-    }
-    .onChange(of: model.usageHistory) { _ in
-      rebuildChartData()
+  }
+
+  private func viewportBounds(_ region: String) -> some View {
+    GeometryReader { geometry in
+      Color.clear.preference(
+        key: UsageTrendViewportBoundsKey.self, value: [region: geometry.frame(in: .global)])
     }
   }
 
@@ -166,12 +270,13 @@ struct UsageTrendView: View {
       ForEach(chartData.points) { point in
         LineMark(
           x: .value("Time", point.recordedAt),
-          y: .value(L10n.text("trends.value", "用量"), point.value)
+          y: .value(L10n.text("trends.value", "用量"), point.value),
+          series: .value("Segment", chartData.lineSeries(for: point))
         )
         .foregroundStyle(by: .value("Metric", point.metricLabel))
         .interpolationMethod(.linear)
 
-        if chartData.seriesCounts[point.seriesID] == 1 {
+        if chartData.isIsolated(point) {
           PointMark(
             x: .value("Time", point.recordedAt),
             y: .value(L10n.text("trends.value", "用量"), point.value)
@@ -179,7 +284,11 @@ struct UsageTrendView: View {
           .foregroundStyle(by: .value("Metric", point.metricLabel))
         }
       }
-
+      ForEach(visibleEvents) { event in
+        RuleMark(x: .value("Event", event.date))
+          .foregroundStyle(Color.secondary.opacity(0.3))
+          .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+      }
     }
     .chartLegend(position: .top, alignment: .leading, spacing: 12)
     .chartOverlay { proxy in
@@ -206,30 +315,51 @@ struct UsageTrendView: View {
     ProviderCatalog.metadata(for: selectedProviderID)
   }
 
-  private func makeChartData(now: Date = Date()) -> UsageTrendChartData {
-    let cutoff = now.addingTimeInterval(-selectedRange.duration)
-    let points = model.usageHistory.filter {
-      $0.providerID == selectedProviderID && $0.recordedAt >= cutoff
-    }
-    guard !points.isEmpty else { return .empty }
+  private var chartData: UsageTrendChartData { projection.chartData }
 
-    let preferredScale: UsageHistoryScale
-    if points.contains(where: { $0.scale == .percent }) {
-      preferredScale = .percent
-    } else if points.contains(where: { $0.scale == .currency }) {
-      preferredScale = .currency
-    } else {
-      preferredScale = .quantity
+  private func accountTitle(_ account: UsageTrendAccountOption) -> String {
+    if account.id == UsageTrendAccountOption.legacy {
+      return L10n.text("trends.legacyHistory", "旧记录（未标记账户）")
     }
-    let preferredUnit = points.first(where: { $0.scale == preferredScale })?.unit
-    let visiblePoints = points
-      .filter { $0.scale == preferredScale && $0.unit == preferredUnit }
-      .sorted { $0.recordedAt < $1.recordedAt }
-    return UsageTrendChartData(points: visiblePoints)
+    if account.id == model.state(for: selectedProviderID)?.accountScope {
+      return L10n.text("trends.currentAccount", "当前账户")
+    }
+    return L10n.text("monitor.historicalAccount", "历史账户记录") + " · "
+      + UsageTrendFormatting.dateText(account.lastRecordedAt)
+  }
+
+  private var visibleEvents: [UsageHistoryEvent] {
+    guard let first = chartData.points.first else { return [] }
+    let metricIDs = Set(chartData.points.map(\.metricID))
+    let scopes = Set(chartData.points.map(\.accountScope))
+    return model.usageEvents.filter {
+      $0.providerID == selectedProviderID && scopes.contains($0.accountScope)
+        && ($0.metricID == nil || metricIDs.contains($0.metricID!))
+        && $0.date >= first.recordedAt && $0.date <= Date()
+    }
+  }
+
+  private var forecastText: String {
+    if chartData.latestPoints.count > 1 {
+      return L10n.text("trends.chooseForecastSource", "选择单个用量窗口与记录来源后可查看估算。")
+    }
+    guard let estimate = UsageHistoryInsights.estimatedExhaustion(chartData.points) else {
+      return L10n.text("monitor.insufficientForecast", "连续样本不足、数据过旧或近期没有消耗，暂不预测耗尽时间。")
+    }
+    if let metricID = chartData.points.last?.metricID,
+      let reset = model.state(for: selectedProviderID)?.metrics.first(where: { $0.id == metricID })?
+        .resetsAt,
+      reset > Date(), estimate > reset
+    {
+      return L10n.text("monitor.forecastCoversReset", "按近期速度，预计可用至本轮重置（估算）。")
+    }
+    return L10n.format(
+      "monitor.forecastExhaustion", "按近期速度，可能在 %@耗尽（估算，未考虑后续重置或充值）。",
+      UsagePresentation.fullDate(estimate))
   }
 
   private var latestPoints: [UsageHistoryPoint] {
-    chartData.latestPoints
+    chartData.windowLatestPoints
   }
 
   private func displayText(for point: UsageHistoryPoint) -> String {
@@ -244,7 +374,17 @@ struct UsageTrendView: View {
   }
 
   private func rebuildChartData() {
-    chartData = makeChartData()
+    hoverState.clear()
+    let query = UsageTrendQuery(
+      history: model.usageHistory, providerID: selectedProviderID,
+      duration: selectedRange.duration,
+      currentAccountScope: model.state(for: selectedProviderID)?.accountScope,
+      now: Date(), preferredMetricID: model.state(for: selectedProviderID)?.summaryMetric?.id)
+    projection = query.projection(
+      selectedWindowID: selectedWindowID, selectedAccountID: selectedAccountID)
+    selectedWindowID = projection.selectedWindowID
+    selectedAccountID = projection.selectedAccountID
+    onProjectionChange?(projection)
   }
 
   private func updateHoverSelection(
@@ -261,6 +401,10 @@ struct UsageTrendView: View {
       }
       let xPosition = location.x - plotFrame.origin.x
       guard let date: Date = proxy.value(atX: xPosition) else {
+        hoverState.clear()
+        return
+      }
+      guard !chartData.isGap(at: date) else {
         hoverState.clear()
         return
       }
@@ -377,7 +521,8 @@ private struct UsageTrendHoverOverlay: View {
     width: CGFloat
   ) -> CGFloat {
     let halfWidth: CGFloat = 80
-    let preferred = selection.x < selection.plotFrame.midX
+    let preferred =
+      selection.x < selection.plotFrame.midX
       ? selection.x + halfWidth + 8
       : selection.x - halfWidth - 8
     return min(max(preferred, halfWidth), width - halfWidth)
@@ -448,22 +593,64 @@ struct UsageTrendChartData: Equatable {
   static let empty = UsageTrendChartData(points: [])
 
   let points: [UsageHistoryPoint]
+  let segments: [[UsageHistoryPoint]]
   let seriesCounts: [String: Int]
   let latestPoints: [UsageHistoryPoint]
+  let windowLatestPoints: [UsageHistoryPoint]
+  private let lineSeriesByPointID: [String: String]
+  private let isolatedPointIDs: Set<String>
   private let timestamps: [Date]
-  private let series: [[UsageHistoryPoint]]
+  private let hoverSeries: [[UsageHistoryPoint]]
 
   init(points: [UsageHistoryPoint]) {
     let orderedPoints = points.sorted { $0.recordedAt < $1.recordedAt }
     self.points = orderedPoints
+    segments = UsageHistoryInsights.segments(orderedPoints)
+    var lineSeriesByPointID: [String: String] = [:]
+    var isolatedPointIDs = Set<String>()
+    for segment in segments {
+      guard let first = segment.first else { continue }
+      let segmentID = first.id
+      for point in segment { lineSeriesByPointID[point.id] = segmentID }
+      if segment.count == 1 { isolatedPointIDs.insert(first.id) }
+    }
+    self.lineSeriesByPointID = lineSeriesByPointID
+    self.isolatedPointIDs = isolatedPointIDs
+    // Hover and headline values share one chronological index per visible window.
+    // Account metadata still partitions plotted lines, but must not duplicate a window's value.
+    let windowSeries = Dictionary(grouping: orderedPoints, by: UsageTrendQuery.windowID).values.map
+    { points in
+      points.sorted {
+        if $0.recordedAt != $1.recordedAt { return $0.recordedAt < $1.recordedAt }
+        return ($0.accountScope ?? "") < ($1.accountScope ?? "")
+      }
+    }
+    hoverSeries = windowSeries
+    windowLatestPoints = windowSeries.compactMap(\.last).sorted { $0.metricLabel < $1.metricLabel }
     let groupedPoints = Dictionary(grouping: orderedPoints, by: \.seriesID)
     seriesCounts = groupedPoints.mapValues(\.count)
     let groupedSeries = Array(groupedPoints.values)
-    series = groupedSeries
-    latestPoints = groupedSeries
+    latestPoints =
+      groupedSeries
       .compactMap(\.last)
       .sorted { $0.metricLabel < $1.metricLabel }
     timestamps = Array(Set(orderedPoints.map(\.recordedAt))).sorted()
+  }
+
+  func lineSeries(for point: UsageHistoryPoint) -> String {
+    lineSeriesByPointID[point.id] ?? point.seriesID
+  }
+
+  func isIsolated(_ point: UsageHistoryPoint) -> Bool { isolatedPointIDs.contains(point.id) }
+
+  func isGap(at date: Date) -> Bool {
+    guard let first = points.first, let last = points.last,
+      date >= first.recordedAt, date <= last.recordedAt
+    else { return true }
+    return !segments.contains { segment in
+      guard let start = segment.first, let end = segment.last else { return false }
+      return date >= start.recordedAt && date <= end.recordedAt
+    }
   }
 
   func nearestTimestamp(to target: Date) -> Date? {
@@ -472,7 +659,7 @@ struct UsageTrendChartData: Equatable {
 
   func values(at timestamp: Date?) -> [UsageHistoryPoint] {
     guard let timestamp else { return [] }
-    return UsageTrendSelection.values(at: timestamp, in: series)
+    return UsageTrendSelection.values(at: timestamp, in: hoverSeries)
   }
 }
 
@@ -520,7 +707,10 @@ enum UsageTrendSelection {
             upperBound = middle
           }
         }
-        return lowerBound == 0 ? ordered.first : ordered[lowerBound - 1]
+        guard lowerBound > 0 else { return nil }
+        let point = ordered[lowerBound - 1]
+        return timestamp.timeIntervalSince(point.recordedAt)
+          <= UsageHistoryInsights.maximumContinuousGap ? point : nil
       }
       .sorted { $0.metricLabel < $1.metricLabel }
   }
@@ -550,7 +740,7 @@ final class UsageTrendWindowController: NSWindowController, NSWindowDelegate {
         .environmentObject(model)
     )
     let trendWindow = NSWindow(
-      contentRect: NSRect(x: 0, y: 0, width: 700, height: 470),
+      contentRect: NSRect(x: 0, y: 0, width: 700, height: 650),
       styleMask: [.titled, .closable, .miniaturizable, .resizable],
       backing: .buffered,
       defer: false
@@ -559,7 +749,7 @@ final class UsageTrendWindowController: NSWindowController, NSWindowDelegate {
     trendWindow.contentViewController = NSHostingController(rootView: rootView)
     trendWindow.delegate = self
     trendWindow.isReleasedWhenClosed = false
-    trendWindow.minSize = NSSize(width: 680, height: 440)
+    trendWindow.contentMinSize = NSSize(width: 680, height: 600)
     center(trendWindow, on: screen)
 
     window = trendWindow
@@ -589,5 +779,19 @@ final class UsageTrendWindowController: NSWindowController, NSWindowDelegate {
   func windowWillClose(_ notification: Notification) {
     guard notification.object as? NSWindow === window else { return }
     window = nil
+  }
+}
+
+private struct UsageTrendViewportBoundsKey: PreferenceKey {
+  static let defaultValue: [String: CGRect] = [:]
+  static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+    value.merge(nextValue(), uniquingKeysWith: { _, latest in latest })
+  }
+}
+
+private struct UsageTrendContentHeightKey: PreferenceKey {
+  static let defaultValue: CGFloat = 0
+  static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+    value = max(value, nextValue())
   }
 }

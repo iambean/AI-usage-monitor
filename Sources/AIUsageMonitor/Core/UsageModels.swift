@@ -42,142 +42,144 @@ struct ProviderMetadata: Identifiable, Sendable, Equatable {
 }
 
 enum ProviderCatalog {
-  static var all: [ProviderMetadata] { [
-    ProviderMetadata(
-      id: .codex,
-      name: "Codex",
-      symbolName: "c.circle.fill",
-      detail: L10n.text("provider.codex.detail", "自动读取 Codex CLI"),
-      availability: .available,
-      configurationKind: .automatic,
-      supportTier: .compatible
-    ),
-    ProviderMetadata(
-      id: .claude,
-      name: "Claude Code",
-      symbolName: "a.circle.fill",
-      detail: L10n.text(
-        "provider.claude.detail",
-        "自动读取 Claude Code 状态栏数据"
+  static var all: [ProviderMetadata] {
+    [
+      ProviderMetadata(
+        id: .codex,
+        name: "Codex",
+        symbolName: "c.circle.fill",
+        detail: L10n.text("provider.codex.detail", "自动读取 Codex CLI"),
+        availability: .available,
+        configurationKind: .automatic,
+        supportTier: .compatible
       ),
-      availability: .available,
-      configurationKind: .automatic,
-      supportTier: .compatible
-    ),
-    ProviderMetadata(
-      id: .cursor,
-      name: "Cursor",
-      symbolName: "cursorarrow.rays",
-      detail: L10n.text(
-        "provider.cursor.detail",
-        "Teams 版需要管理员 Admin API Key"
+      ProviderMetadata(
+        id: .claude,
+        name: "Claude Code",
+        symbolName: "a.circle.fill",
+        detail: L10n.text(
+          "provider.claude.detail",
+          "自动读取 Claude Code 状态栏数据"
+        ),
+        availability: .available,
+        configurationKind: .automatic,
+        supportTier: .compatible
       ),
-      availability: .available,
-      configurationKind: .apiKey,
-      supportTier: .stable
-    ),
-    ProviderMetadata(
-      id: .kimi,
-      name: "Kimi Code",
-      symbolName: "moon.circle.fill",
-      detail: L10n.text("provider.kimi.detail", "自动读取 Kimi Code /usage"),
-      availability: .available,
-      configurationKind: .automatic,
-      supportTier: .compatible
-    ),
-    ProviderMetadata(
-      id: .minimax,
-      name: "MiniMax",
-      symbolName: "m.circle.fill",
-      detail: L10n.text("provider.minimax.detail", "需要 Token Plan 订阅 Key"),
-      availability: .available,
-      configurationKind: .apiKey,
-      supportTier: .stable
-    ),
-    ProviderMetadata(
-      id: .deepseek,
-      name: "DeepSeek",
-      symbolName: "d.circle.fill",
-      detail: L10n.text("provider.deepseek.detail", "需要 DeepSeek API Key"),
-      availability: .available,
-      configurationKind: .apiKey,
-      supportTier: .stable
-    ),
-    ProviderMetadata(
-      id: .qoder,
-      name: "Qoder Teams",
-      symbolName: "q.circle.fill",
-      detail: L10n.text("provider.qoder.detail", "需要 Teams OpenAPI 配置"),
-      availability: .available,
-      configurationKind: .qoderTeams,
-      supportTier: .stable
-    ),
-    ProviderMetadata(
-      id: .ark,
-      name: L10n.text("provider.ark.name", "火山方舟 Ark"),
-      symbolName: "flame.circle.fill",
-      detail: L10n.text(
-        "provider.codingPlan.unavailableReason",
-        "等待官方稳定用量查询接口"
+      ProviderMetadata(
+        id: .cursor,
+        name: "Cursor",
+        symbolName: "cursorarrow.rays",
+        detail: L10n.text(
+          "provider.cursor.detail",
+          "Teams 版需要管理员 Admin API Key"
+        ),
+        availability: .available,
+        configurationKind: .apiKey,
+        supportTier: .stable
       ),
-      availability: .unavailable(
-        L10n.text(
+      ProviderMetadata(
+        id: .kimi,
+        name: "Kimi Code",
+        symbolName: "moon.circle.fill",
+        detail: L10n.text("provider.kimi.detail", "自动读取 Kimi Code /usage"),
+        availability: .available,
+        configurationKind: .automatic,
+        supportTier: .compatible
+      ),
+      ProviderMetadata(
+        id: .minimax,
+        name: "MiniMax",
+        symbolName: "m.circle.fill",
+        detail: L10n.text("provider.minimax.detail", "需要 Token Plan 订阅 Key"),
+        availability: .available,
+        configurationKind: .apiKey,
+        supportTier: .stable
+      ),
+      ProviderMetadata(
+        id: .deepseek,
+        name: "DeepSeek",
+        symbolName: "d.circle.fill",
+        detail: L10n.text("provider.deepseek.detail", "需要 DeepSeek API Key"),
+        availability: .available,
+        configurationKind: .apiKey,
+        supportTier: .stable
+      ),
+      ProviderMetadata(
+        id: .qoder,
+        name: "Qoder Teams",
+        symbolName: "q.circle.fill",
+        detail: L10n.text("provider.qoder.detail", "需要 Teams OpenAPI 配置"),
+        availability: .available,
+        configurationKind: .qoderTeams,
+        supportTier: .stable
+      ),
+      ProviderMetadata(
+        id: .ark,
+        name: L10n.text("provider.ark.name", "火山方舟 Ark"),
+        symbolName: "flame.circle.fill",
+        detail: L10n.text(
           "provider.codingPlan.unavailableReason",
           "等待官方稳定用量查询接口"
-        )
+        ),
+        availability: .unavailable(
+          L10n.text(
+            "provider.codingPlan.unavailableReason",
+            "等待官方稳定用量查询接口"
+          )
+        ),
+        configurationKind: .automatic,
+        supportTier: .unavailable
       ),
-      configurationKind: .automatic,
-      supportTier: .unavailable
-    ),
-    ProviderMetadata(
-      id: .aliyun,
-      name: L10n.text("provider.aliyun.name", "阿里云百炼"),
-      symbolName: "cloud.circle.fill",
-      detail: L10n.text(
-        "provider.codingPlan.unavailableReason",
-        "等待官方稳定用量查询接口"
-      ),
-      availability: .unavailable(
-        L10n.text(
+      ProviderMetadata(
+        id: .aliyun,
+        name: L10n.text("provider.aliyun.name", "阿里云百炼"),
+        symbolName: "cloud.circle.fill",
+        detail: L10n.text(
           "provider.codingPlan.unavailableReason",
           "等待官方稳定用量查询接口"
-        )
+        ),
+        availability: .unavailable(
+          L10n.text(
+            "provider.codingPlan.unavailableReason",
+            "等待官方稳定用量查询接口"
+          )
+        ),
+        configurationKind: .automatic,
+        supportTier: .unavailable
       ),
-      configurationKind: .automatic,
-      supportTier: .unavailable
-    ),
-    ProviderMetadata(
-      id: .tencent,
-      name: L10n.text("provider.tencent.name", "腾讯云 Coding Plan"),
-      symbolName: "cloud.fill",
-      detail: L10n.text(
-        "provider.codingPlan.unavailableReason",
-        "等待官方稳定用量查询接口"
-      ),
-      availability: .unavailable(
-        L10n.text(
+      ProviderMetadata(
+        id: .tencent,
+        name: L10n.text("provider.tencent.name", "腾讯云 Coding Plan"),
+        symbolName: "cloud.fill",
+        detail: L10n.text(
           "provider.codingPlan.unavailableReason",
           "等待官方稳定用量查询接口"
-        )
+        ),
+        availability: .unavailable(
+          L10n.text(
+            "provider.codingPlan.unavailableReason",
+            "等待官方稳定用量查询接口"
+          )
+        ),
+        configurationKind: .automatic,
+        supportTier: .unavailable
       ),
-      configurationKind: .automatic,
-      supportTier: .unavailable
-    ),
-    ProviderMetadata(
-      id: .glm,
-      name: "GLM Coding Plan",
-      symbolName: "g.circle.fill",
-      detail: L10n.text("status.temporarilyUnavailable", "暂不可用"),
-      availability: .unavailable(
-        L10n.text(
-          "provider.glm.unavailableReason",
-          "官方暂未提供稳定的用量查询接口"
-        )
+      ProviderMetadata(
+        id: .glm,
+        name: "GLM Coding Plan",
+        symbolName: "g.circle.fill",
+        detail: L10n.text("status.temporarilyUnavailable", "暂不可用"),
+        availability: .unavailable(
+          L10n.text(
+            "provider.glm.unavailableReason",
+            "官方暂未提供稳定的用量查询接口"
+          )
+        ),
+        configurationKind: .automatic,
+        supportTier: .unavailable
       ),
-      configurationKind: .automatic,
-      supportTier: .unavailable
-    ),
-  ] }
+    ]
+  }
 
   static func metadata(for id: ProviderID) -> ProviderMetadata {
     all.first(where: { $0.id == id })!
@@ -378,6 +380,9 @@ struct ProviderUsageState: Identifiable, Codable, Sendable, Equatable {
   var message: String?
   var recoverySuggestion: String?
   var messageAction: ProviderMessageAction?
+  var resetCredits: CodexResetCredits?
+  var accountLabel: String?
+  var accountScope: String?
 
   init(
     id: ProviderID,
@@ -389,7 +394,10 @@ struct ProviderUsageState: Identifiable, Codable, Sendable, Equatable {
     updatedAt: Date?,
     message: String?,
     recoverySuggestion: String? = nil,
-    messageAction: ProviderMessageAction? = nil
+    messageAction: ProviderMessageAction? = nil,
+    resetCredits: CodexResetCredits? = nil,
+    accountLabel: String? = nil,
+    accountScope: String? = nil
   ) {
     self.id = id
     self.name = name
@@ -401,6 +409,9 @@ struct ProviderUsageState: Identifiable, Codable, Sendable, Equatable {
     self.message = message
     self.recoverySuggestion = recoverySuggestion
     self.messageAction = messageAction
+    self.resetCredits = resetCredits
+    self.accountLabel = accountLabel
+    self.accountScope = accountScope
   }
 
   var defaultSummary: UsageValue? {
@@ -512,6 +523,9 @@ struct ProviderUsageState: Identifiable, Codable, Sendable, Equatable {
     state.message = message
     state.recoverySuggestion = recoverySuggestion
     state.messageAction = nil
+    state.resetCredits = nil
+    state.accountLabel = nil
+    state.accountScope = nil
     return state
   }
 

@@ -21,6 +21,8 @@ actor CodexUsageProvider: UsageProvider {
   private var lastAttemptAt: Date?
   private var isRefreshing = false
   private var consecutiveFailures = 0
+  private var accountGeneration = 0
+  private var accountRefreshPending = false
 
   init(executablePath: String) {
     client = CodexAppServerClient(executablePath: executablePath)
@@ -65,6 +67,8 @@ actor CodexUsageProvider: UsageProvider {
 
   func stop() async {
     isStarted = false
+    accountGeneration += 1
+    accountRefreshPending = false
     pollingTask?.cancel()
     notificationTask?.cancel()
     pollingTask = nil
@@ -98,7 +102,7 @@ actor CodexUsageProvider: UsageProvider {
 
   @discardableResult
   private func performRefresh(bypassingManualThrottle: Bool) async -> Bool {
-    guard !isRefreshing else { return false }
+    guard isStarted, !isRefreshing else { return false }
 
     let now = Date()
     if !bypassingManualThrottle,
@@ -110,31 +114,65 @@ actor CodexUsageProvider: UsageProvider {
 
     isRefreshing = true
     lastAttemptAt = now
-    defer { isRefreshing = false }
+    let generation = accountGeneration
+    defer {
+      isRefreshing = false
+      if accountRefreshPending {
+        accountRefreshPending = false
+        Task { [weak self] in _ = await self?.performRefresh(bypassingManualThrottle: true) }
+      }
+    }
 
     do {
+      let account = CodexAccountIdentity.parse(try await client.readAccount())
+      if let oldScope = currentState?.accountScope, oldScope != account?.scope {
+        currentState = .loading(.codex)
+        continuation?.yield(currentState!)
+      }
       let result = try await client.readRateLimits()
-      let state = try CodexUsageParser.parse(result: result)
+      guard generation == accountGeneration else { return false }
+      var state = try CodexUsageParser.parse(result: result)
+      state.accountLabel = account?.label
+      state.accountScope = account?.scope
       currentState = state
       consecutiveFailures = 0
       continuation?.yield(state)
       return true
     } catch {
+      guard generation == accountGeneration else { return false }
       consecutiveFailures += 1
-      let state = (currentState ?? .loading(.codex)).failed(
-        message: error.localizedDescription,
-        recoverySuggestion: ProviderRecoverySuggestion.text(
-          for: error,
-          providerID: .codex
-        )
-      )
+      let state = (currentState ?? .loading(.codex)).handlingFailure(error)
       currentState = state
       continuation?.yield(state)
       return false
     }
   }
 
+  func consumeReset(idempotencyKey: String) async throws -> String {
+    let account = CodexAccountIdentity.parse(try await client.readAccount())
+    guard account?.scope == currentState?.accountScope, currentState?.status == .connected else {
+      _ = await performRefresh(bypassingManualThrottle: true)
+      throw CodexClientError.rpc(L10n.text("monitor.accountChanged", "账户已变化，请确认最新额度后再操作。"))
+    }
+    let outcome = try await client.consumeReset(idempotencyKey: idempotencyKey)
+    let refreshed = await performRefresh(bypassingManualThrottle: true)
+    if !refreshed && ["reset", "alreadyRedeemed"].contains(outcome) {
+      return "resetRefreshPending"
+    }
+    return outcome
+  }
+
   private func handle(_ notification: CodexNotification) {
+    if notification.method == "account/updated" {
+      accountGeneration += 1
+      accountRefreshPending = isRefreshing
+      currentState = .loading(.codex)
+      continuation?.yield(currentState!)
+      Task { [weak self] in
+        _ = await self?.performRefresh(bypassingManualThrottle: true)
+      }
+      return
+    }
     guard notification.method == "account/rateLimits/updated",
       let state = CodexUsageParser.parseNotification(
         params: notification.params,

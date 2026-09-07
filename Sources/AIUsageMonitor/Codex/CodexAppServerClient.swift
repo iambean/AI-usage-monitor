@@ -10,6 +10,7 @@ actor CodexAppServerClient {
   private var outputBuffer = Data()
   private var nextRequestID = 1
   private var pending: [Int: CheckedContinuation<JSONValue, Error>] = [:]
+  private var requestTimeouts: [Int: Task<Void, Never>] = [:]
   private var notificationContinuation: AsyncStream<CodexNotification>.Continuation?
   private var isStopping = false
   private(set) var launchCount = 0
@@ -96,6 +97,22 @@ actor CodexAppServerClient {
     )
   }
 
+  func consumeReset(idempotencyKey: String) async throws -> String {
+    try await start()
+    let result = try await request(
+      method: "account/rateLimitResetCredit/consume",
+      params: .object([
+        "idempotencyKey": .string(idempotencyKey)
+      ]))
+    return result["outcome"]?.stringValue ?? "unknown"
+  }
+
+  func readAccount() async throws -> JSONValue {
+    try await start()
+    return try await request(
+      method: "account/read", params: .object(["refreshToken": .bool(false)]))
+  }
+
   func stop() async {
     isStopping = true
     standardOutput?.readabilityHandler = nil
@@ -128,9 +145,14 @@ actor CodexAppServerClient {
 
     return try await withCheckedThrowingContinuation { continuation in
       pending[id] = continuation
+      requestTimeouts[id] = Task { [weak self] in
+        do { try await Task.sleep(nanoseconds: 30_000_000_000) } catch { return }
+        await self?.expireRequest(id)
+      }
       do {
         try write(request)
       } catch {
+        requestTimeouts.removeValue(forKey: id)?.cancel()
         pending.removeValue(forKey: id)
         continuation.resume(throwing: error)
       }
@@ -168,6 +190,7 @@ actor CodexAppServerClient {
     }
 
     if let id = envelope.id, let continuation = pending.removeValue(forKey: id) {
+      requestTimeouts.removeValue(forKey: id)?.cancel()
       if let error = envelope.error {
         continuation.resume(throwing: CodexClientError.rpc(error.message))
       } else {
@@ -203,7 +226,14 @@ actor CodexAppServerClient {
     failPending(with: CodexClientError.processExited(exitCode))
   }
 
+  private func expireRequest(_ id: Int) {
+    requestTimeouts.removeValue(forKey: id)
+    pending.removeValue(forKey: id)?.resume(throwing: CodexClientError.timeout)
+  }
+
   private func failPending(with error: Error) {
+    for timeout in requestTimeouts.values { timeout.cancel() }
+    requestTimeouts.removeAll()
     let continuations = pending.values
     pending.removeAll()
     for continuation in continuations {

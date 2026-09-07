@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import ServiceManagement
+import UniformTypeIdentifiers
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -20,13 +21,38 @@ final class AppModel: ObservableObject {
   @Published private(set) var usageHistory: [UsageHistoryPoint]
   @Published private(set) var appLanguage: AppLanguage
 
+  @Published private(set) var preferences = MonitorPreferences.load()
+  @Published private(set) var refreshingProviders: Set<ProviderID> = []
+  @Published private(set) var usageEvents: [UsageHistoryEvent] = UsageEventStore.load()
+  @Published private(set) var notificationMessage: String?
+  @Published private(set) var historyMessage: String?
+  @Published private(set) var resetInProgress = false
+  @Published private(set) var resetMessage: String?
+  private var maintenanceTask: Task<Void, Never>?
+  private var checkedResets: [String: Date] = [:]
+  private var historyRevision = 0
+  private var alertEngine = UsageAlertEngine()
+  private var pendingAlerts: Set<String> = []
+  private lazy var notificationService: UsageNotificationService = {
+    let service = UsageNotificationService()
+    service.onOpen = {
+      NotificationCenter.default.post(name: .aiUsageOpenPanel, object: nil)
+    }
+    service.onSnooze = { [weak self] in
+      self?.updatePreferences { $0.snoozedUntil = Date().addingTimeInterval(3_600) }
+      self?.alertEngine.delivered.removeAll()
+      UserDefaults.standard.removeObject(forKey: "usage-alert-ledger")
+    }
+    return service
+  }()
+
   var currentVersion: String {
     Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString")
       as? String ?? "0.0.0"
   }
 
   private var providers: [ProviderID: any UsageProvider] = [:]
-  private let appUpdater = AppUpdater()
+  private lazy var appUpdater = AppUpdater()
   private let updateChecker = UpdateChecker()
   private let usageHistoryWriter = UsageHistoryWriter()
   private var updateTasks: [ProviderID: Task<Void, Never>] = [:]
@@ -34,16 +60,38 @@ final class AppModel: ObservableObject {
   private var connectionGenerations: [ProviderID: UUID] = [:]
   private var powerStateObserver: NSObjectProtocol?
   private var wakeObserver: NSObjectProtocol?
+  private let isPreview: Bool
   private var hasStarted = false
   private var isShuttingDown = false
 
-  init() {
+  init(
+    previewStates: [ProviderUsageState]? = nil,
+    previewHistory: [UsageHistoryPoint] = [],
+    previewEvents: [UsageHistoryEvent] = []
+  ) {
+    if let previewStates {
+      isPreview = true
+      appLanguage = .simplifiedChinese
+      enabledProviderIDs = previewStates.map(\.id)
+      primaryProviderID = previewStates.first?.id ?? .codex
+      providerStates = previewStates
+      launchAtLoginEnabled = false
+      detectedExecutablePaths = [:]
+      lowPowerModeEnabled = false
+      cursorAccountMode = .teams
+      usageHistory = previewHistory
+      usageEvents = previewEvents
+      preferences = MonitorPreferences()
+      return
+    }
+    isPreview = false
     appLanguage = AppLanguageStore.load()
     var enabled = ProviderSettingsStore.enabledProviderIDs()
     let primary = ProviderSettingsStore.primaryProviderID(
       enabledProviderIDs: enabled
     )
-    enabled = ProviderOrder.withPrimaryFirst(enabled, primary: primary)
+    enabled = MonitorPreferences.load().ordered(
+      ProviderOrder.withPrimaryFirst(enabled, primary: primary))
     enabledProviderIDs = enabled
     primaryProviderID = primary
     ProviderSettingsStore.setEnabledProviderIDs(enabled)
@@ -56,7 +104,7 @@ final class AppModel: ObservableObject {
     detectedExecutablePaths = Self.detectExecutables()
     lowPowerModeEnabled = ProcessInfo.processInfo.isLowPowerModeEnabled
     cursorAccountMode = ProviderSettingsStore.cursorAccountMode()
-    usageHistory = UsageHistoryStore.load()
+    usageHistory = UsageHistoryStore.load(retentionDays: MonitorPreferences.load().retentionDays)
 
     powerStateObserver = NotificationCenter.default.addObserver(
       forName: Notification.Name.NSProcessInfoPowerStateDidChange,
@@ -73,13 +121,25 @@ final class AppModel: ObservableObject {
       queue: .main
     ) { [weak self] _ in
       Task { @MainActor in
-        self?.refreshPrimary()
+        if self?.preferences.refreshAfterWake == true {
+          self?.refresh()
+        } else {
+          self?.refreshPrimary()
+        }
       }
     }
     refreshCredentialAvailability()
+    if let data = UserDefaults.standard.data(forKey: "usage-alert-ledger"),
+      let ledger = try? JSONDecoder().decode([String: Date].self, from: data)
+    {
+      alertEngine.delivered = ledger
+    }
+    applyAppearance()
+    pruneHistory()
   }
 
   deinit {
+    maintenanceTask?.cancel()
     if let powerStateObserver {
       NotificationCenter.default.removeObserver(powerStateObserver)
     }
@@ -184,22 +244,35 @@ final class AppModel: ObservableObject {
   }
 
   func startIfNeeded() {
-    guard !hasStarted else { return }
+    guard !hasStarted, !isPreview else { return }
     hasStarted = true
     for id in enabledProviderIDs {
       connect(id)
     }
     checkForUpdates(manual: false)
+    if preferences.notificationsEnabled { _ = notificationService }
+    maintenanceTask = Task { [weak self] in
+      while !Task.isCancelled {
+        do { try await Task.sleep(nanoseconds: 60_000_000_000) } catch { return }
+        self?.maintainUsage()
+      }
+    }
   }
 
   func refresh() {
-    let activeProviders = Array(providers.values)
-    Task {
-      await withTaskGroup(of: Void.self) { group in
-        for provider in activeProviders {
-          group.addTask { await provider.refresh() }
-        }
-      }
+    for id in enabledProviderIDs { refresh(id) }
+  }
+
+  func refresh(_ id: ProviderID) {
+    guard !refreshingProviders.contains(id) else { return }
+    guard let provider = providers[id] else {
+      if hasStarted { connect(id) }
+      return
+    }
+    refreshingProviders.insert(id)
+    Task { [weak self] in
+      await provider.refresh()
+      self?.refreshingProviders.remove(id)
     }
   }
 
@@ -386,7 +459,8 @@ final class AppModel: ObservableObject {
         let url = try DiagnosticsExporter.export(
           states: providerStates,
           enabledProviderIDs: enabledProviderIDs,
-          lowPowerModeEnabled: lowPowerModeEnabled
+          lowPowerModeEnabled: lowPowerModeEnabled,
+          primaryProviderID: primaryProviderID
         )
       else {
         return
@@ -444,6 +518,8 @@ final class AppModel: ObservableObject {
     guard !isShuttingDown else { return }
     isShuttingDown = true
     hasStarted = false
+    maintenanceTask?.cancel()
+    maintenanceTask = nil
 
     for task in startTasks.values {
       task.cancel()
@@ -578,9 +654,192 @@ final class AppModel: ObservableObject {
 
   private func refreshRole(for id: ProviderID) -> ProviderRefreshRole {
     if id == primaryProviderID {
-      return lowPowerModeEnabled ? .lowPowerPrimary : .primary
+      return lowPowerModeEnabled && preferences.reduceInLowPower ? .lowPowerPrimary : .primary
     }
-    return lowPowerModeEnabled ? .suspended : .secondary
+    return lowPowerModeEnabled && preferences.reduceInLowPower ? .suspended : .secondary
+  }
+
+  func updatePreferences(_ update: (inout MonitorPreferences) -> Void) {
+    let old = preferences
+    update(&preferences)
+    if !isPreview { preferences.save() }
+    if old.providerOrder != preferences.providerOrder {
+      orderEnabledProviders()
+      orderStates()
+    }
+    if old.appearance != preferences.appearance { applyAppearance() }
+    if old.reduceInLowPower != preferences.reduceInLowPower { applyRefreshRoles() }
+    if old.retentionDays != preferences.retentionDays {
+      pruneHistory()
+      persistHistory()
+    }
+  }
+
+  func moveProvider(_ id: ProviderID, offset: Int) {
+    var order = enabledProviderIDs
+    guard let index = order.firstIndex(of: id), order.indices.contains(index + offset) else {
+      return
+    }
+    order.swapAt(index, index + offset)
+    updatePreferences { $0.providerOrder = order }
+  }
+
+  func setNotificationsEnabled(_ enabled: Bool) {
+    notificationMessage = nil
+    guard enabled else {
+      updatePreferences { $0.notificationsEnabled = false }
+      return
+    }
+    Task {
+      do {
+        let allowed = try await notificationService.requestPermission()
+        updatePreferences { $0.notificationsEnabled = allowed }
+        if !allowed {
+          notificationMessage = NotificationPermissionError.denied.localizedDescription
+        }
+      } catch { notificationMessage = error.localizedDescription }
+    }
+  }
+
+  func previewNotification() {
+    guard preferences.notificationsEnabled else {
+      notificationMessage = L10n.text("monitor.enableNotificationsFirst", "请先开启通知并授权。")
+      return
+    }
+    Task {
+      do {
+        try await notificationService.post(
+          provider: primaryProviderID,
+          alerts: [
+            UsageAlert(
+              key: "preview", message: L10n.text("monitor.notificationPreview", "通知样式预览，不代表实际额度不足。")
+            )
+          ])
+        notificationMessage = L10n.text("monitor.previewSent", "预览通知已发送")
+      } catch { notificationMessage = error.localizedDescription }
+    }
+  }
+
+  func clearHistory() {
+    usageHistory = []
+    usageEvents = []
+    persistHistory()
+    historyMessage = L10n.text("monitor.historyCleared", "本地历史已清除；后续成功刷新会继续记录。")
+  }
+
+  func exportHistory() {
+    let panel = NSSavePanel()
+    panel.allowedContentTypes = [.commaSeparatedText]
+    panel.nameFieldStringValue = "AI-Usage-History.csv"
+    guard panel.runModal() == .OK, let url = panel.url else { return }
+    do {
+      try UsageHistoryInsights.csv(points: usageHistory, events: usageEvents).write(
+        to: url, atomically: true, encoding: .utf8)
+      historyMessage = L10n.format("monitor.historyExported", "历史已导出到 %@", url.lastPathComponent)
+    } catch { historyMessage = error.localizedDescription }
+  }
+
+  func consumeCodexReset() {
+    guard !resetInProgress, let provider = providers[.codex] as? CodexUsageProvider,
+      let state = state(for: .codex), state.status == .connected,
+      (state.resetCredits?.availableCount ?? 0) > 0
+    else { return }
+    resetInProgress = true
+    resetMessage = L10n.text("monitor.resetting", "正在重置并重新查询额度…")
+    let attemptKey = "codex-reset-attempt-" + (state.accountScope ?? "local")
+    let key = UserDefaults.standard.string(forKey: attemptKey) ?? UUID().uuidString
+    UserDefaults.standard.set(key, forKey: attemptKey)
+    Task {
+      defer { resetInProgress = false }
+      do {
+        let outcome = try await provider.consumeReset(idempotencyKey: key)
+        switch outcome {
+        case "reset", "alreadyRedeemed", "resetRefreshPending":
+          UserDefaults.standard.removeObject(forKey: attemptKey)
+          resetMessage =
+            outcome == "resetRefreshPending"
+            ? L10n.text("monitor.resetPendingRefresh", "重置已确认；额度读取失败，请点击刷新，勿重复使用次数。")
+            : L10n.text("monitor.resetDone", "重置已确认，已重新查询额度。")
+          usageEvents.append(
+            UsageHistoryEvent(
+              providerID: .codex, metricID: nil,
+              accountScope: state.accountScope, date: .now, kind: .manualReset))
+          persistHistory()
+        case "nothingToReset":
+          UserDefaults.standard.removeObject(forKey: attemptKey)
+          resetMessage = L10n.text("monitor.nothingToReset", "当前没有可重置的额度，未消耗次数。")
+        case "noCredit":
+          UserDefaults.standard.removeObject(forKey: attemptKey)
+          resetMessage = L10n.text("monitor.noResetCredit", "当前没有可用重置次数。")
+        default:
+          resetMessage = L10n.text("monitor.resetUncertain", "暂未确认重置结果；重试会沿用同一次请求。")
+        }
+      } catch {
+        resetMessage =
+          error.localizedDescription + "\n"
+          + L10n.text("monitor.resetUncertain", "暂未确认重置结果；重试会沿用同一次请求。")
+      }
+    }
+  }
+
+  private func applyAppearance() {
+    NSApp?.appearance =
+      preferences.appearance == "dark"
+      ? NSAppearance(named: .darkAqua)
+      : preferences.appearance == "light" ? NSAppearance(named: .aqua) : nil
+  }
+
+  private func pruneHistory() {
+    usageHistory = UsageHistoryStore.pruned(usageHistory, retentionDays: preferences.retentionDays)
+    let cutoff = Date().addingTimeInterval(-Double(preferences.retentionDays) * 86_400)
+    usageEvents = Array(usageEvents.filter { $0.date >= cutoff }.suffix(10_000))
+  }
+
+  private func persistHistory() {
+    historyRevision += 1
+    let points = usageHistory
+    let events = usageEvents
+    let revision = historyRevision
+    Task { await usageHistoryWriter.save(points, events: events, revision: revision) }
+  }
+
+  private func evaluateAlerts(_ state: ProviderUsageState) {
+    guard let updatedAt = state.updatedAt, Date().timeIntervalSince(updatedAt) <= 90 * 60 else {
+      return
+    }
+    let alerts = alertEngine.evaluate(state, preferences: preferences).filter {
+      !pendingAlerts.contains($0.key)
+    }
+    guard !alerts.isEmpty else { return }
+    pendingAlerts.formUnion(alerts.map(\.key))
+    Task {
+      defer { pendingAlerts.subtract(alerts.map(\.key)) }
+      do {
+        guard preferences.notificationsEnabled, !preferences.isQuiet(at: Date()) else { return }
+        try await notificationService.post(provider: state.id, alerts: alerts)
+        alertEngine.markDelivered(alerts)
+        if let data = try? JSONEncoder().encode(alertEngine.delivered) {
+          UserDefaults.standard.set(data, forKey: "usage-alert-ledger")
+        }
+      } catch { notificationMessage = error.localizedDescription }
+    }
+  }
+
+  private func maintainUsage() {
+    guard hasStarted else { return }
+    let now = Date()
+    for state in providerStates {
+      evaluateAlerts(state)
+      for metric in state.metrics {
+        guard let reset = metric.resetsAt, reset <= now,
+          now.timeIntervalSince(reset) < 3_600
+        else { continue }
+        let key = MonitorPreferences.metricKey(providerID: state.id, metricID: metric.id)
+        guard checkedResets[key] != reset else { continue }
+        checkedResets[key] = reset
+        refresh(state.id)
+      }
+    }
   }
 
   private func configurationFailureMessage(
@@ -656,6 +915,13 @@ final class AppModel: ObservableObject {
 
   private func accept(_ state: ProviderUsageState) {
     guard enabledProviderIDs.contains(state.id) else { return }
+    let previous = self.state(for: state.id)
+    let previousEventCount = usageEvents.count
+    if state.id == .codex, state.status == .connected, !resetInProgress { resetMessage = nil }
+    if !(state.id == .codex && resetInProgress) {
+      usageEvents.append(
+        contentsOf: UsageHistoryInsights.events(previous: previous, current: state))
+    }
     if let index = providerStates.firstIndex(where: { $0.id == state.id }) {
       providerStates[index] = state
     } else {
@@ -664,14 +930,15 @@ final class AppModel: ObservableObject {
     orderStates()
     UsageCacheStore.save(providerStates)
     if state.status == .connected {
-      let updatedHistory = UsageHistoryStore.record(state, in: usageHistory)
-      if updatedHistory != usageHistory {
+      let updatedHistory = UsageHistoryStore.record(
+        state, in: usageHistory, retentionDays: preferences.retentionDays)
+      if updatedHistory != usageHistory || usageEvents.count != previousEventCount {
         usageHistory = updatedHistory
-        Task {
-          await usageHistoryWriter.save(updatedHistory)
-        }
+        pruneHistory()
+        persistHistory()
       }
     }
+    evaluateAlerts(state)
     DiagnosticLog.record(
       "provider_state",
       providerID: state.id,
@@ -683,10 +950,11 @@ final class AppModel: ObservableObject {
   }
 
   private func orderEnabledProviders() {
-    enabledProviderIDs = ProviderOrder.withPrimaryFirst(
-      enabledProviderIDs,
-      primary: primaryProviderID
-    )
+    enabledProviderIDs = preferences.ordered(
+      ProviderOrder.withPrimaryFirst(
+        enabledProviderIDs,
+        primary: primaryProviderID
+      ))
   }
 
   private func orderStates() {
@@ -748,4 +1016,8 @@ enum ConfigurationError: LocalizedError {
       return L10n.text("error.providerUnavailable", "该数据源暂不可用")
     }
   }
+}
+
+extension Notification.Name {
+  static let aiUsageOpenPanel = Notification.Name("AIUsageOpenPanel")
 }

@@ -32,6 +32,7 @@ struct CodexNotification: Sendable {
 enum CodexClientError: LocalizedError {
   case executableNotFound(String)
   case processExited(Int32)
+  case timeout
   case missingInput
   case rpc(String)
 
@@ -45,6 +46,8 @@ enum CodexClientError: LocalizedError {
         "Codex App Server 已退出（%d）",
         code
       )
+    case .timeout:
+      return L10n.text("monitor.requestTimeout", "查询超时，请重试")
     case .missingInput:
       return L10n.text(
         "error.codexServerWrite",
