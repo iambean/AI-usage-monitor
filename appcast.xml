@@ -6,17 +6,17 @@
     <description>AI Usage app updates</description>
     <language>en</language>
     <item>
-      <title>Version 0.3.8</title>
-      <pubDate>Wed, 26 Aug 2026 07:00:49 +0000</pubDate>
-      <link>https://github.com/iambean/AI-usage-monitor/releases/tag/v0.3.8</link>
-      <sparkle:version>23</sparkle:version>
-      <sparkle:shortVersionString>0.3.8</sparkle:shortVersionString>
+      <title>Version 0.3.9</title>
+      <pubDate>Mon, 07 Sep 2026 11:37:04 +0000</pubDate>
+      <link>https://github.com/iambean/AI-usage-monitor/releases/tag/v0.3.9</link>
+      <sparkle:version>24</sparkle:version>
+      <sparkle:shortVersionString>0.3.9</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
       <enclosure
-        url="https://github.com/iambean/AI-usage-monitor/releases/download/v0.3.8/AI-Usage-0.3.8-arm64-adhoc.zip"
-        length="3512856"
+        url="https://github.com/iambean/AI-usage-monitor/releases/download/v0.3.9/AI-Usage-0.3.9-arm64-adhoc.zip"
+        length="3832939"
         type="application/octet-stream"
-        sparkle:edSignature="slbqKEbYwauyzE0BTF2wuHvG0RBSl9+26Ykt8nIuFdwvICkz3QRQRKJymeXSu4MVBLbpJouHSmS/t5N537nUAA==" />
+        sparkle:edSignature="/DhmG5zypkCsCQjPZmU0h+CfatMRgXKkNAsz4HCH5i/QgCaU84c43tIT1QiKCjxKNSkiUCJ7uOhnkxzJANA2BA==" />
     </item>
   </channel>
 </rss>
