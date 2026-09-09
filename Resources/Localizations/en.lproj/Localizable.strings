@@ -95,7 +95,7 @@
 "provider.cursor.personalDetail" = "Personal accounts only open the official Usage page";
 "provider.cursor.personalWebOnly" = "No public personal usage API is available. ";
 "provider.kimi.detail" = "Reads Kimi Code /usage automatically";
-"provider.minimax.detail" = "Requires a Token Plan subscription key";
+"provider.minimax.detail" = "Subscription key or standard API key";
 "provider.deepseek.detail" = "Requires a DeepSeek API key";
 "provider.qoder.detail" = "Requires Teams OpenAPI configuration";
 "provider.ark.name" = "Volcengine Ark";
@@ -242,7 +242,6 @@
 "monitor.snoozedUntil" = "Paused until %@";
 "monitor.sources" = "Providers";
 "monitor.thresholds" = "Remaining quota thresholds";
-"monitor.toggleProvider" = "Expand or collapse %@";
 "monitor.trendWindow" = "Quota window";
 "monitor.updatedRelative" = "Updated %@";
 "monitor.usageAlert" = "Usage alert";
@@ -266,3 +265,13 @@
 "trends.allWindows" = "All usage windows";
 
 "trends.chooseForecastSource" = "Select one usage window and record source to view an estimate.";
+
+"error.minimaxService" = "MiniMax error (%@): %@";
+"error.minimaxMissingQuota" = "MiniMax returned no available Token Plan usage.";
+"error.minimaxInvalidResponse" = "MiniMax returned an unsupported usage response. Please try again later.";
+"recovery.minimaxTokenPlan" = "Check the key and service region. Subscription keys query plan usage; sk-api- API keys query account balance.";
+"recovery.minimaxService" = "Check the subscription using the details returned by MiniMax, or try again later.";
+"settings.minimaxKeyNotice" = "Supports subscription keys and sk-api- API keys; automatically queries plan usage or balance.";
+
+"usage.apiBalance" = "Available API balance";
+"usage.balanceCurrencyUnknown" = "Balance · currency unspecified";

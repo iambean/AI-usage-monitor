@@ -47,6 +47,9 @@ enum UsageFailurePolicy {
       ].contains(error.code)
     }
     if case HTTPUsageError.server(let status, _) = error { return status >= 500 || status == 429 }
+    if case MiniMaxAPIError.service(let code, _) = error {
+      return [1001, 1002, 1013].contains(code)
+    }
     if let error = error as? CodexClientError {
       switch error {
       case .processExited, .missingInput, .timeout: return true
@@ -68,7 +71,10 @@ enum UsageFailurePolicy {
 enum UsagePresentation {
   static func caption(_ metric: UsageMetric, providerID: ProviderID) -> String {
     if metric.value.kind == .balance {
-      return "\(metric.value.currency ?? "") " + metric.value.caption
+      guard let currency = metric.value.currency else {
+        return L10n.text("usage.balanceCurrencyUnknown", "余额 · 币种未提供")
+      }
+      return currency + " " + metric.value.caption
     }
     let name = providerID == .codex && metric.id.hasPrefix("codex.") ? "Default · " : ""
     return name + metric.label + " · " + metric.value.caption

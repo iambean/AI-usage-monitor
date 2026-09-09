@@ -5,9 +5,7 @@ struct ProviderUsageRow: View {
   let state: ProviderUsageState
   var selectedMetricID: String?
   var compact = false
-  var isCollapsed = false
   var isRefreshing = false
-  var onToggle: (() -> Void)?
   var onRefresh: (() -> Void)?
   var onReset: (() -> Void)?
   var resetInProgress = false
@@ -19,9 +17,10 @@ struct ProviderUsageRow: View {
     TimelineView(.periodic(from: .now, by: 60)) { context in
       VStack(alignment: .leading, spacing: compact ? 6 : 9) {
         header
-        HStack(spacing: 6) {
+        HStack(alignment: .top, spacing: 6) {
           Text(sourceLabel)
-            .lineLimit(1)
+            .fixedSize(horizontal: false, vertical: true)
+            .textSelection(.enabled)
             .help(sourceLabel)
           Spacer(minLength: 3)
           Text(
@@ -41,42 +40,40 @@ struct ProviderUsageRow: View {
         }
         .font(.system(size: 9))
         .foregroundStyle(.secondary)
-        if !isCollapsed {
-          if state.status != .connected || state.metrics.isEmpty {
-            statusContent
+        if hasStatusContent {
+          statusContent
+        }
+        if canShowUsage {
+          if hasMetricsContent {
+            metricsContent(now: context.date)
           }
-          if canShowUsage {
-            if !(state.metrics.count == 1 && state.metrics.first?.value.kind == .balance) {
-              metricsContent(now: context.date)
-            }
-            if state.id == .codex {
-              CodexResetCreditsView(
-                credits: state.resetCredits, isStale: state.status == .stale,
-                isExpanded: $resetCreditsExpanded)
-              if resetCreditsExpanded, let onReset,
-                state.status == .connected, (state.resetCredits?.availableCount ?? 0) > 0
-              {
+          if state.id == .codex {
+            CodexResetCreditsView(
+              credits: state.resetCredits, isStale: state.status == .stale,
+              isExpanded: $resetCreditsExpanded)
+            if resetCreditsExpanded, let onReset,
+              state.status == .connected, (state.resetCredits?.availableCount ?? 0) > 0
+            {
+              Button(
+                resetInProgress
+                  ? L10n.text("monitor.resetting", "正在重置并重新查询额度…")
+                  : L10n.text("monitor.useReset", "使用一次重置…")
+              ) { confirmReset = true }
+              .buttonStyle(.link)
+              .font(.system(size: 10))
+              .disabled(resetInProgress)
+              .alert(
+                L10n.text("monitor.confirmResetTitle", "使用一次重置？"), isPresented: $confirmReset
+              ) {
+                Button(L10n.text("common.cancel", "取消"), role: .cancel) {}
                 Button(
-                  resetInProgress
-                    ? L10n.text("monitor.resetting", "正在重置并重新查询额度…")
-                    : L10n.text("monitor.useReset", "使用一次重置…")
-                ) { confirmReset = true }
-                .buttonStyle(.link)
-                .font(.system(size: 10))
-                .disabled(resetInProgress)
-                .alert(
-                  L10n.text("monitor.confirmResetTitle", "使用一次重置？"), isPresented: $confirmReset
-                ) {
-                  Button(L10n.text("common.cancel", "取消"), role: .cancel) {}
-                  Button(
-                    L10n.text("monitor.confirmReset", "确认使用"), role: .destructive, action: onReset)
-                } message: {
-                  Text(L10n.text("monitor.confirmResetBody", "这将消耗 1 次可用重置。完成后重新查询额度与剩余次数。"))
-                }
+                  L10n.text("monitor.confirmReset", "确认使用"), role: .destructive, action: onReset)
+              } message: {
+                Text(L10n.text("monitor.confirmResetBody", "这将消耗 1 次可用重置。完成后重新查询额度与剩余次数。"))
               }
-              if let resetMessage {
-                Text(resetMessage).font(.system(size: 10)).foregroundStyle(.secondary)
-              }
+            }
+            if let resetMessage {
+              Text(resetMessage).font(.system(size: 10)).foregroundStyle(.secondary)
             }
           }
         }
@@ -102,17 +99,13 @@ struct ProviderUsageRow: View {
 
   private var metric: UsageMetric? { state.selectedMetric(selectedMetricID) }
   private var canShowUsage: Bool { state.status == .connected || state.status == .stale }
-
+  private var hasStatusContent: Bool { state.status != .connected || state.metrics.isEmpty }
+  private var hasMetricsContent: Bool {
+    canShowUsage && !state.metrics.isEmpty
+      && !(state.metrics.count == 1 && state.metrics.first?.value.kind == .balance)
+  }
   private var header: some View {
     HStack(spacing: 7) {
-      if let onToggle {
-        Button(action: onToggle) {
-          Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
-            .font(.system(size: 8, weight: .medium))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(L10n.format("monitor.toggleProvider", "展开或折叠 %@", state.name))
-      }
       Link(destination: ProviderUsageDestination.url(for: state.id)) {
         HStack(spacing: 8) {
           ProviderIcon(providerID: state.id, fallbackSymbolName: state.symbolName, size: 24)

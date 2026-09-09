@@ -196,7 +196,9 @@ enum ClaudeUsageProviderFactory {
       guard let data = try? Data(contentsOf: ClaudeUsageStorage.cacheURL) else {
         throw ClaudeUsageError.waitingForData
       }
-      return try ClaudeUsageParser.parse(data)
+      var state = try ClaudeUsageParser.parse(data)
+      state.accountLabel = ProviderAccountLabel.claude()
+      return state
     }
   }
 }

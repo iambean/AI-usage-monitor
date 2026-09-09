@@ -81,7 +81,15 @@ enum QoderUsageProviderFactory {
         "https://api.qoder.com/v1/organizations/\(organizationID)/members/\(memberID)/quota"
     )!
     let data = try await HTTPUsageClient.get(url: url, bearerToken: apiKey)
-    return try QoderUsageParser.parse(data)
+    var state = try QoderUsageParser.parse(data)
+    let profileURL = URL(
+      string: "https://api.qoder.com/v1/organizations/\(organizationID)/members/\(memberID)")!
+    if let profile = await ProviderAccountLabel.fetch(
+      url: profileURL, bearerToken: apiKey)
+    {
+      state.accountLabel = ProviderAccountLabel.qoder(profile, memberID: configuration.memberID)
+    }
+    return state
   }
 
   static func make(apiKey: String, configuration: QoderConfiguration) -> PollingUsageProvider {

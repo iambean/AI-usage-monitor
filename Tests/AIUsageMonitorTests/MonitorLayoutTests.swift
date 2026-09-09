@@ -24,17 +24,6 @@ final class MonitorLayoutTests: XCTestCase {
   }
 
   @MainActor
-  func testCollapsedProvidersShrinkTheMeasuredPanel() async throws {
-    let model = AppModel(previewStates: states)
-    model.updatePreferences { $0.collapsedProviders = states.map(\.id) }
-    let size = try await capture(
-      MenuBarContentView().environmentObject(model), width: 350, height: 680,
-      name: "optimized-collapsed")
-    XCTAssertGreaterThan(size.height, 180)
-    XCTAssertLessThan(size.height, 400)
-  }
-
-  @MainActor
   func testReminderAndDataSettingsRenderWithoutNetworkOrPermissionRequests() async throws {
     let model = AppModel(previewStates: states)
     _ = try await capture(

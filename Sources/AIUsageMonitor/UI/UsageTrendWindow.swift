@@ -64,6 +64,7 @@ struct UsageTrendView: View {
       .onChange(of: viewport.size) { _ in hoverState.clear() }
     }
     .frame(minWidth: 680, minHeight: 600)
+    .environment(\.locale, model.appLanguage.locale)
     .onPreferenceChange(UsageTrendViewportBoundsKey.self) { bounds in
       if let title = bounds["title"], let footer = bounds["footer"] {
         onViewportBoundsChange?(title, footer)
@@ -85,6 +86,10 @@ struct UsageTrendView: View {
       rebuildChartData()
     }
     .onChange(of: model.usageHistory) { _ in
+      rebuildChartData()
+    }
+    .onChange(of: model.appLanguage) { _ in
+      hoverState.clear()
       rebuildChartData()
     }
   }
@@ -379,7 +384,8 @@ struct UsageTrendView: View {
       history: model.usageHistory, providerID: selectedProviderID,
       duration: selectedRange.duration,
       currentAccountScope: model.state(for: selectedProviderID)?.accountScope,
-      now: Date(), preferredMetricID: model.state(for: selectedProviderID)?.summaryMetric?.id)
+      now: Date(), preferredMetricID: model.state(for: selectedProviderID)?.summaryMetric?.id,
+      language: model.appLanguage)
     projection = query.projection(
       selectedWindowID: selectedWindowID, selectedAccountID: selectedAccountID)
     selectedWindowID = projection.selectedWindowID

@@ -195,7 +195,7 @@ final class MonitorEnhancementTests: XCTestCase {
     XCTAssertTrue(engine.evaluate(state, preferences: alertPreferences(), now: now).isEmpty)
   }
 
-  func testAccountIdentityMasksEmailAndChangesScopeWithAccountOrPlan() throws {
+  func testAccountIdentityShowsFullEmailAndKeepsScopeStable() throws {
     func identity(_ email: String, _ plan: String = "pro") throws -> CodexAccountIdentity {
       try XCTUnwrap(
         CodexAccountIdentity.parse(
@@ -206,7 +206,7 @@ final class MonitorEnhancementTests: XCTestCase {
           ])))
     }
     let first = try identity("person@example.com")
-    XCTAssertFalse(first.label.contains("person@"))
+    XCTAssertEqual(first.label, "person@example.com · Pro")
     XCTAssertFalse(first.scope.contains("@"))
     XCTAssertEqual(first, try identity("person@example.com"))
     XCTAssertNotEqual(first.scope, try identity("other@example.com").scope)

@@ -95,7 +95,7 @@
 "provider.cursor.personalDetail" = "个人版仅支持打开官方 Usage 页面";
 "provider.cursor.personalWebOnly" = "个人版暂未提供公开用量 API，";
 "provider.kimi.detail" = "自动读取 Kimi Code /usage";
-"provider.minimax.detail" = "需要 Token Plan 订阅 Key";
+"provider.minimax.detail" = "支持订阅 Key 或普通 API Key";
 "provider.deepseek.detail" = "需要 DeepSeek API Key";
 "provider.qoder.detail" = "需要 Teams OpenAPI 配置";
 "provider.ark.name" = "火山方舟 Ark";
@@ -242,7 +242,6 @@
 "monitor.snoozedUntil" = "已暂停至 %@";
 "monitor.sources" = "数据源";
 "monitor.thresholds" = "剩余额度阈值";
-"monitor.toggleProvider" = "展开或折叠 %@";
 "monitor.trendWindow" = "额度窗口";
 "monitor.updatedRelative" = "%@更新";
 "monitor.usageAlert" = "用量提醒";
@@ -266,3 +265,13 @@
 "trends.allWindows" = "全部用量窗口";
 
 "trends.chooseForecastSource" = "选择单个用量窗口与记录来源后可查看估算。";
+
+"error.minimaxService" = "MiniMax 返回错误（%@）：%@";
+"error.minimaxMissingQuota" = "MiniMax 未返回可用的 Token Plan 用量。";
+"error.minimaxInvalidResponse" = "MiniMax 返回的用量格式暂不兼容，请稍后重试。";
+"recovery.minimaxTokenPlan" = "请确认 Key 与服务区域匹配。订阅 Key 查询套餐用量，sk-api- 开头的普通 API Key 查询余额。";
+"recovery.minimaxService" = "请根据 MiniMax 返回的详情检查订阅状态，或稍后重试。";
+"settings.minimaxKeyNotice" = "支持订阅 Key 和 sk-api- 开头的普通 API Key，自动查询套餐用量或余额。";
+
+"usage.apiBalance" = "API 可用余额";
+"usage.balanceCurrencyUnknown" = "余额 · 币种未提供";

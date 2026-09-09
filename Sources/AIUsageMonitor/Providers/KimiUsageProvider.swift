@@ -479,7 +479,13 @@ enum KimiUsageProviderFactory {
       url: URL(string: "https://api.kimi.com/coding/v1/usages")!,
       bearerToken: accessToken
     )
-    return try KimiUsageParser.parse(data)
+    var state = try KimiUsageParser.parse(data)
+    if let profile = await ProviderAccountLabel.fetch(
+      url: URL(string: "https://api.kimi.com/coding/v1/me")!, bearerToken: accessToken)
+    {
+      state.accountLabel = ProviderAccountLabel.kimi(profile)
+    }
+    return state
   }
 
   static func make() -> PollingUsageProvider {

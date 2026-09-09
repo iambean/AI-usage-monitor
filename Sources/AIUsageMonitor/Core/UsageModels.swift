@@ -90,7 +90,7 @@ enum ProviderCatalog {
         id: .minimax,
         name: "MiniMax",
         symbolName: "m.circle.fill",
-        detail: L10n.text("provider.minimax.detail", "需要 Token Plan 订阅 Key"),
+        detail: L10n.text("provider.minimax.detail", "支持订阅 Key 或普通 API Key"),
         availability: .available,
         configurationKind: .apiKey,
         supportTier: .stable

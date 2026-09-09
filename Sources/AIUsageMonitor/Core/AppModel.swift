@@ -67,11 +67,12 @@ final class AppModel: ObservableObject {
   init(
     previewStates: [ProviderUsageState]? = nil,
     previewHistory: [UsageHistoryPoint] = [],
-    previewEvents: [UsageHistoryEvent] = []
+    previewEvents: [UsageHistoryEvent] = [],
+    previewLanguage: AppLanguage = .simplifiedChinese
   ) {
     if let previewStates {
       isPreview = true
-      appLanguage = .simplifiedChinese
+      appLanguage = previewLanguage
       enabledProviderIDs = previewStates.map(\.id)
       primaryProviderID = previewStates.first?.id ?? .codex
       providerStates = previewStates

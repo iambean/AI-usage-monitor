@@ -45,43 +45,51 @@ struct SettingsView: View {
           .fill(Color.primary.opacity(0.045))
       )
 
-      HStack {
-        Button(L10n.text("settings.redetect", "重新检测本机工具")) {
-          model.redetectExecutables()
-        }
-        .buttonStyle(.link)
-
-        Button(L10n.text("diagnostics.export", "导出诊断")) {
-          model.exportDiagnostics()
-        }
-        .buttonStyle(.link)
-
-        Spacer()
-
-        Picker(
-          L10n.text("settings.language", "语言"),
-          selection: Binding(
-            get: { model.appLanguage },
-            set: { model.setAppLanguage($0) }
-          )
-        ) {
-          ForEach(AppLanguage.allCases) { language in
-            Text(language.title).tag(language)
+      VStack(alignment: .leading, spacing: 12) {
+        HStack(spacing: 16) {
+          Button(L10n.text("settings.redetect", "重新检测本机工具")) {
+            model.redetectExecutables()
           }
-        }
-        .pickerStyle(.menu)
-        .controlSize(.small)
-        .fixedSize()
-        .id(model.appLanguage)
+          .buttonStyle(.link)
 
-        Toggle(
-          L10n.text("settings.launchAtLogin", "登录时启动"),
-          isOn: Binding(
-            get: { model.launchAtLoginEnabled },
-            set: { model.setLaunchAtLogin($0) }
+          Button(L10n.text("diagnostics.export", "导出诊断")) {
+            model.exportDiagnostics()
+          }
+          .buttonStyle(.link)
+
+          Spacer(minLength: 0)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+
+        HStack(spacing: 16) {
+          Picker(
+            L10n.text("settings.language", "语言"),
+            selection: Binding(
+              get: { model.appLanguage },
+              set: { model.setAppLanguage($0) }
+            )
+          ) {
+            ForEach(AppLanguage.allCases) { language in
+              Text(language.title).tag(language)
+            }
+          }
+          .pickerStyle(.menu)
+          .controlSize(.small)
+          .fixedSize()
+          .id(model.appLanguage)
+
+          Spacer(minLength: 12)
+
+          Toggle(
+            L10n.text("settings.launchAtLogin", "登录时启动"),
+            isOn: Binding(
+              get: { model.launchAtLoginEnabled },
+              set: { model.setLaunchAtLogin($0) }
+            )
           )
-        )
-        .toggleStyle(.switch)
+          .toggleStyle(.switch)
+          .fixedSize()
+        }
       }
 
       if let error = model.launchAtLoginError {
@@ -271,7 +279,7 @@ struct SettingsView: View {
         Text(rowDetail(metadata))
           .font(.system(size: 10))
           .foregroundStyle(.secondary)
-          .lineLimit(1)
+          .fixedSize(horizontal: false, vertical: true)
       }
     }
     .contentShape(Rectangle())
@@ -492,6 +500,10 @@ private struct ProviderConfigurationView: View {
       }
 
       if providerID == .minimax {
+        Text(
+          L10n.text("settings.minimaxKeyNotice", "支持订阅 Key 和 sk-api- 开头的普通 API Key，自动查询套餐用量或余额。")
+        )
+        .font(.system(size: 10)).foregroundStyle(.secondary)
         Picker(
           L10n.text("settings.serviceRegion", "服务区域"),
           selection: $miniMaxRegion

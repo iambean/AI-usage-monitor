@@ -42,10 +42,20 @@ struct UsageTrendQuery {
 
   init(
     history: [UsageHistoryPoint], providerID: ProviderID, duration: TimeInterval,
-    currentAccountScope: String?, now: Date, preferredMetricID: String? = nil
+    currentAccountScope: String?, now: Date, preferredMetricID: String? = nil,
+    language: AppLanguage = AppLanguageStore.load()
   ) {
+    let localization = UsageHistoryLocalization(language: language)
+    var translatedLabels: [String: String] = [:]
     providerPoints = history.filter {
       $0.providerID == providerID && $0.recordedAt <= now
+    }.map { point in
+      let label = translatedLabels[point.metricLabel] ?? localization.label(point.metricLabel)
+      translatedLabels[point.metricLabel] = label
+      return UsageHistoryPoint(
+        providerID: point.providerID, metricID: point.metricID, metricLabel: label,
+        recordedAt: point.recordedAt, value: point.value, scale: point.scale,
+        unit: point.unit, accountScope: point.accountScope)
     }.sorted { $0.recordedAt < $1.recordedAt }
     self.duration = duration
     self.currentAccountScope = currentAccountScope

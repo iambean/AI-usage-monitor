@@ -13,7 +13,6 @@ struct MonitorPreferences: Codable, Equatable {
   var appearance = "system"
   var selectedMetrics: [String: String] = [:]
   var providerOrder: [ProviderID] = []
-  var collapsedProviders: [ProviderID] = []
   var refreshAfterWake = true
   var reduceInLowPower = true
   var retentionDays = 30

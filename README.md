@@ -46,11 +46,12 @@ used for the menu-bar summary. Provider order and the displayed window can be cu
 
 - Native SwiftUI menu bar experience for macOS 13 and later
 - Menu bar shows only the icon and usage value; click to see details
-- Exactly one default provider for the menu bar, with selectable windows, provider ordering, and collapsible rows
+- Exactly one default provider for the menu bar, with selectable windows and provider ordering
 - Independent quota bars and reset countdowns per window, with exact dates and time zones on hover
 - Codex reset counts and expiry details, with confirmation before redemption and idempotent retries
 - The main panel and Settings follow the normal macOS window stacking behavior
 - In-app language switcher for System Default, Simplified Chinese, and English, with Chinese as the fallback
+- Full account names where account metadata is available, with wrapping for long names
 - Automatic discovery of locally installed Codex, Claude Code, and Kimi Code
 - Credentials for API-based providers stored in the macOS Keychain
 - Primary-provider polling with hourly secondary refreshes and immediate refresh when the panel opens
@@ -77,7 +78,7 @@ used for the menu-bar summary. Provider order and the displayed window can be cu
 | Claude Code | Available | Automatically discovers Claude Code and installs an owned status-line collector | Available usage windows and reset times |
 | Cursor | Teams available; Personal is web-only | Teams admin API key with an inline Teams/Personal switch | Team spend and member count for the current cycle; official Usage page for Personal |
 | Kimi Code | Available, best effort | Automatically discovers Kimi Code and reads its local login session | Subscription quota windows |
-| MiniMax | Available, best effort | Token Plan subscription key | Remaining percentage and reset windows |
+| MiniMax | Available, best effort | Token Plan subscription key / sk-api- API key | Plan quota and reset windows / account balance (CNY in China, USD globally; explicit API currency takes precedence) |
 | DeepSeek | Available | DeepSeek API key | API account balance |
 | Qoder Teams | Available | Teams API key, organization ID, and member ID | Plan, resource package, shared, and total quota |
 | Volcengine Ark | Not yet selectable | None | Reserved until a stable official usage-query API is available |

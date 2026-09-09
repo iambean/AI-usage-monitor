@@ -109,11 +109,11 @@ enum CursorUsageProviderFactory {
       metadata: ProviderCatalog.metadata(for: .cursor),
       refreshInterval: 86_400
     ) {
-      personalState()
+      personalState(accountLabel: ProviderAccountLabel.cursorPersonal())
     }
   }
 
-  static func personalState(now: Date = Date()) -> ProviderUsageState {
+  static func personalState(now: Date = Date(), accountLabel: String? = nil) -> ProviderUsageState {
     ProviderUsageState(
       id: .cursor,
       name: "Cursor",
@@ -129,7 +129,8 @@ enum CursorUsageProviderFactory {
       messageAction: ProviderMessageAction(
         title: L10n.text("usage.openUsagePage", "请打开 Usage 页面"),
         url: ProviderUsageDestination.url(for: .cursor)
-      )
+      ),
+      accountLabel: accountLabel
     )
   }
 

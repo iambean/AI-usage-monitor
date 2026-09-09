@@ -61,17 +61,7 @@ struct MenuBarContentView: View {
           state: state,
           selectedMetricID: model.preferences.selectedMetrics[state.id.rawValue],
           compact: model.preferences.compact,
-          isCollapsed: model.preferences.collapsedProviders.contains(state.id),
           isRefreshing: model.refreshingProviders.contains(state.id),
-          onToggle: {
-            model.updatePreferences { preferences in
-              if preferences.collapsedProviders.contains(state.id) {
-                preferences.collapsedProviders.removeAll { $0 == state.id }
-              } else {
-                preferences.collapsedProviders.append(state.id)
-              }
-            }
-          },
           onRefresh: { model.refresh(state.id) },
           onReset: state.id == .codex ? { model.consumeCodexReset() } : nil,
           resetInProgress: model.resetInProgress,
