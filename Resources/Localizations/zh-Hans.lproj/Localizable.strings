@@ -117,6 +117,8 @@
 "recovery.apiProvider" = "请检查凭证和订阅状态，然后重新配置或点击刷新。";
 "recovery.claude" = "请先运行一次 Claude Code，再返回应用点击刷新。";
 "recovery.codex" = "请确认 Codex CLI 已登录并可正常运行，然后点击刷新。";
+"recovery.codexAuthentication" = "自动恢复登录未成功。请在终端运行 codex login，完成登录后点击刷新。";
+"error.codexAuthentication" = "Codex 登录状态已失效，暂时无法读取用量。";
 "recovery.kimi" = "请在 Kimi Code 中运行 /usage；若 CLI 正常，再返回应用点击刷新。";
 "recovery.unavailable" = "该数据源尚未开放，请等待后续版本支持。";
 

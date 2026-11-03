@@ -117,6 +117,8 @@
 "recovery.apiProvider" = "Check the credentials and subscription, then reconfigure or refresh.";
 "recovery.claude" = "Run Claude Code once, then return to the app and refresh.";
 "recovery.codex" = "Make sure Codex CLI is signed in and working, then refresh.";
+"recovery.codexAuthentication" = "Automatic sign-in recovery failed. Run codex login in Terminal, complete sign-in, then refresh.";
+"error.codexAuthentication" = "Your Codex session is no longer valid. Usage is temporarily unavailable.";
 "recovery.kimi" = "Run /usage in Kimi Code. If the CLI works, return to the app and refresh.";
 "recovery.unavailable" = "This provider is not available yet. Please wait for a future update.";
 

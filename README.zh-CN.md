@@ -154,7 +154,7 @@ DMG/ZIP、生成 SHA-256 校验文件，最后自动发布 GitHub Release。普�
 
 ## 配置方式与本地改动
 
-- **Codex：**应用自动定位 `codex` 可执行文件，并与其本地 App Server 进程通信。
+- **Codex：**应用自动定位 `codex` 可执行文件，并与其本地 App Server 进程通信。账户或用量查询遇到登录过期、401 时，仅重启本应用的 App Server 以重新加载共享凭证，由 Codex 刷新令牌后重试一次账户与用量查询，恢复其他 Codex 客户端在套餐变更后更新的登录状态。正常轮询不强制刷新令牌；恢复失败时提示重新登录，网络故障和权限错误不触发此流程。本应用不直接读写 Codex 令牌。详见[认证恢复设计](docs/codex-authentication-recovery.md)。
 - **Claude Code：**启用后可能在 `~/.claude/settings.json` 中添加由 AI Usage 管理的 `statusLine` 命令；如果已有其他 `statusLine` 配置，应用不会覆盖。关闭该数据源时，只移除由 AI Usage 创建的配置。
 - **Kimi Code：**应用自动定位 `kimi` 可执行文件，读取 Mac 上保存的 Kimi Code 登录态，并在短期 Access Token 即将到期时自动续期。
 - **Cursor：**默认使用 Teams 模式，管理员 API Key 保存在 macOS 钥匙串并以保守频率读取官方团队用量；切换到个人模式后不抓取未公开接口，仅打开官方 Usage 页面。

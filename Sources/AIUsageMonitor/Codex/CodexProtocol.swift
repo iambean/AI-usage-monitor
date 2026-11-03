@@ -36,6 +36,27 @@ enum CodexClientError: LocalizedError {
   case missingInput
   case rpc(String)
 
+  var isAuthenticationFailure: Bool {
+    guard case .rpc(let message) = self else { return false }
+    let text = message.lowercased()
+    return text.range(of: #"\b401\b"#, options: .regularExpression) != nil
+      || text.contains("unauthorized")
+      || text.contains("token_expired")
+      || text.contains("token_invalidated")
+      || text.contains("refresh_token_expired")
+      || text.contains("refresh_token_reused")
+      || text.contains("refresh_token_invalidated")
+      || (text.contains("refresh token") && text.contains("log in again"))
+  }
+
+  var recoverySuggestion: String? {
+    guard isAuthenticationFailure else { return nil }
+    return L10n.text(
+      "recovery.codexAuthentication",
+      "自动恢复登录未成功。请在终端运行 codex login，完成登录后点击刷新。"
+    )
+  }
+
   var errorDescription: String? {
     switch self {
     case .executableNotFound(let path):
@@ -54,6 +75,9 @@ enum CodexClientError: LocalizedError {
         "无法写入 Codex App Server"
       )
     case .rpc(let message):
+      if isAuthenticationFailure {
+        return L10n.text("error.codexAuthentication", "Codex 登录状态已失效，暂时无法读取用量。")
+      }
       return message
     }
   }

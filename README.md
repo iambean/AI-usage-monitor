@@ -176,7 +176,14 @@ GitHub Release. Ordinary branch pushes do not publish a release.
 ## Configuration and local changes
 
 - **Codex:** the app locates the `codex` executable and communicates with its
-  local App Server process.
+  local App Server process. If an account or usage read reports an expired or
+  unauthorized session, AI Usage restarts only its own App Server to reload shared
+  credentials, asks Codex to refresh the token, and retries the account and usage
+  reads once. This lets the monitor recover when another Codex client has updated
+  the login after a plan change. Healthy polls do not force token rotation.
+  Failed recovery shows sign-in guidance; network and permission errors do not
+  trigger authentication recovery. AI Usage never reads or writes Codex tokens
+  directly. See the [authentication recovery design](docs/codex-authentication-recovery.md).
 - **Claude Code:** enabling the provider may add an AI Usage-owned
   `statusLine` command to `~/.claude/settings.json`. Existing unrelated
   `statusLine` configurations are not overwritten. Disabling the provider

@@ -23,6 +23,7 @@ actor CodexUsageProvider: UsageProvider {
   private var consecutiveFailures = 0
   private var accountGeneration = 0
   private var accountRefreshPending = false
+  private var lastAuthenticationRecoveryAt: Date?
 
   init(executablePath: String) {
     client = CodexAppServerClient(executablePath: executablePath)
@@ -124,16 +125,8 @@ actor CodexUsageProvider: UsageProvider {
     }
 
     do {
-      let account = CodexAccountIdentity.parse(try await client.readAccount())
-      if let oldScope = currentState?.accountScope, oldScope != account?.scope {
-        currentState = .loading(.codex)
-        continuation?.yield(currentState!)
-      }
-      let result = try await client.readRateLimits()
+      let state = try await readUsageWithAuthenticationRecovery()
       guard generation == accountGeneration else { return false }
-      var state = try CodexUsageParser.parse(result: result)
-      state.accountLabel = account?.label
-      state.accountScope = account?.scope
       currentState = state
       consecutiveFailures = 0
       continuation?.yield(state)
@@ -146,6 +139,44 @@ actor CodexUsageProvider: UsageProvider {
       continuation?.yield(state)
       return false
     }
+  }
+
+  private func readUsageWithAuthenticationRecovery() async throws -> ProviderUsageState {
+    do {
+      return try await readUsage()
+    } catch let error as CodexClientError where error.isAuthenticationFailure {
+      // A refresh can emit account/updated and queue another read. Do not let
+      // repeated auth failures turn that notification into a refresh loop.
+      let now = Date()
+      if let lastAuthenticationRecoveryAt,
+        now.timeIntervalSince(lastAuthenticationRecoveryAt) < 30
+      {
+        throw error
+      }
+      lastAuthenticationRecoveryAt = now
+      // Other Codex clients can rotate shared credentials while our App Server
+      // still holds the old tokens. Reload before asking Codex to refresh them.
+      await client.stop()
+      guard isStarted else { throw CancellationError() }
+      _ = try await client.readAccount(refreshToken: true)
+      guard isStarted else { throw CancellationError() }
+      // One retry only. Re-read identity as well so a new plan/account is not
+      // paired with the label or history scope from the expired session.
+      return try await readUsage()
+    }
+  }
+
+  private func readUsage() async throws -> ProviderUsageState {
+    let account = CodexAccountIdentity.parse(try await client.readAccount())
+    if let oldScope = currentState?.accountScope, oldScope != account?.scope {
+      currentState = .loading(.codex)
+      continuation?.yield(currentState!)
+    }
+    let result = try await client.readRateLimits()
+    var state = try CodexUsageParser.parse(result: result)
+    state.accountLabel = account?.label
+    state.accountScope = account?.scope
+    return state
   }
 
   func consumeReset(idempotencyKey: String) async throws -> String {
@@ -168,8 +199,10 @@ actor CodexUsageProvider: UsageProvider {
       accountRefreshPending = isRefreshing
       currentState = .loading(.codex)
       continuation?.yield(currentState!)
-      Task { [weak self] in
-        _ = await self?.performRefresh(bypassingManualThrottle: true)
+      if !isRefreshing {
+        Task { [weak self] in
+          _ = await self?.performRefresh(bypassingManualThrottle: true)
+        }
       }
       return
     }

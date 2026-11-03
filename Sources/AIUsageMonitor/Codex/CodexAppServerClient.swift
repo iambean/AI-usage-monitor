@@ -107,10 +107,10 @@ actor CodexAppServerClient {
     return result["outcome"]?.stringValue ?? "unknown"
   }
 
-  func readAccount() async throws -> JSONValue {
+  func readAccount(refreshToken: Bool = false) async throws -> JSONValue {
     try await start()
     return try await request(
-      method: "account/read", params: .object(["refreshToken": .bool(false)]))
+      method: "account/read", params: .object(["refreshToken": .bool(refreshToken)]))
   }
 
   func stop() async {

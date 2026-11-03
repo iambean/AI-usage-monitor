@@ -51,6 +51,7 @@ enum UsageFailurePolicy {
       return [1001, 1002, 1013].contains(code)
     }
     if let error = error as? CodexClientError {
+      if error.isAuthenticationFailure { return false }
       switch error {
       case .processExited, .missingInput, .timeout: return true
       case .rpc(let message):
