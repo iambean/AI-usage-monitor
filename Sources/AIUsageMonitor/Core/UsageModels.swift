@@ -380,9 +380,12 @@ struct ProviderUsageState: Identifiable, Codable, Sendable, Equatable {
   var message: String?
   var recoverySuggestion: String?
   var messageAction: ProviderMessageAction?
+  var codexCredits: CodexCreditBalance?
+  var codexCreditGrant: CodexCreditGrant?
   var resetCredits: CodexResetCredits?
   var accountLabel: String?
   var accountScope: String?
+  var codexPlan: CodexPlanObservation?
 
   init(
     id: ProviderID,
@@ -395,6 +398,8 @@ struct ProviderUsageState: Identifiable, Codable, Sendable, Equatable {
     message: String?,
     recoverySuggestion: String? = nil,
     messageAction: ProviderMessageAction? = nil,
+    codexCredits: CodexCreditBalance? = nil,
+    codexCreditGrant: CodexCreditGrant? = nil,
     resetCredits: CodexResetCredits? = nil,
     accountLabel: String? = nil,
     accountScope: String? = nil
@@ -409,6 +414,8 @@ struct ProviderUsageState: Identifiable, Codable, Sendable, Equatable {
     self.message = message
     self.recoverySuggestion = recoverySuggestion
     self.messageAction = messageAction
+    self.codexCredits = codexCredits
+    self.codexCreditGrant = codexCreditGrant
     self.resetCredits = resetCredits
     self.accountLabel = accountLabel
     self.accountScope = accountScope
@@ -523,9 +530,12 @@ struct ProviderUsageState: Identifiable, Codable, Sendable, Equatable {
     state.message = message
     state.recoverySuggestion = recoverySuggestion
     state.messageAction = nil
+    state.codexCredits = nil
+    state.codexCreditGrant = nil
     state.resetCredits = nil
     state.accountLabel = nil
     state.accountScope = nil
+    state.codexPlan = nil
     return state
   }
 

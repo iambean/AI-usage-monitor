@@ -25,7 +25,9 @@ extension ProviderUsageState {
   func handlingFailure(_ error: Error) -> ProviderUsageState {
     let message = error.localizedDescription
     let recovery = ProviderRecoverySuggestion.text(for: error, providerID: id)
-    guard UsageFailurePolicy.isTransient(error), !metrics.isEmpty, updatedAt != nil else {
+    guard UsageFailurePolicy.isTransient(error), !metrics.isEmpty || codexCredits != nil,
+      updatedAt != nil
+    else {
       return failed(message: message, recoverySuggestion: recovery)
     }
     var state = self

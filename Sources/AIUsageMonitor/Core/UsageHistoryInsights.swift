@@ -2,9 +2,10 @@ import Foundation
 
 struct UsageHistoryEvent: Identifiable, Codable, Equatable {
   enum Kind: String, Codable {
-    case automaticReset, manualReset, increase, balanceIncrease
+    case automaticReset, manualReset, increase, balanceIncrease, planChange
     var title: String {
       switch self {
+      case .planChange: return L10n.text("monitor.eventPlanChange", "套餐变更")
       case .automaticReset: return L10n.text("monitor.eventAutomatic", "自动重置")
       case .manualReset: return L10n.text("monitor.eventManual", "手动重置")
       case .increase: return L10n.text("monitor.eventIncrease", "额度增加（原因未确认）")
@@ -18,10 +19,51 @@ struct UsageHistoryEvent: Identifiable, Codable, Equatable {
   let accountScope: String?
   let date: Date
   let kind: Kind
+  var previousScope: String?
+  var previousPlan: String?
+  var newPlan: String?
+  var fiveHourPercentBefore: Int?
+  var fiveHourPercentAfter: Int?
+
+  var title: String {
+    if kind == .planChange, let previousPlan, let newPlan {
+      func name(_ tier: String) -> String {
+        switch tier {
+        case "prolite": return "Pro Lite"
+        case "promax": return "Pro Max"
+        default: return tier.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+      }
+      let before = name(previousPlan), after = name(newPlan)
+      if previousPlan == "prolite", newPlan == "pro" {
+        return L10n.format("monitor.eventPlanUpgrade", "套餐升级：%@ → %@", before, after)
+      }
+      return L10n.format("monitor.eventPlanTransition", "套餐变更：%@ → %@", before, after)
+    }
+    if kind == .manualReset, let fiveHourPercentBefore, let fiveHourPercentAfter {
+      return L10n.format("monitor.eventManualFiveHours", "手动重置 · 5 小时额度 %d%% → %d%%",
+        fiveHourPercentBefore, fiveHourPercentAfter)
+    }
+    return kind.title
+  }
 }
 
 enum UsageHistoryInsights {
   static let maximumContinuousGap: TimeInterval = 90 * 60
+
+  static func planChange(in history: [UsageHistoryPoint], current: ProviderUsageState)
+    -> UsageHistoryEvent?
+  {
+    guard current.id == .codex, current.status == .connected, let plan = current.codexPlan,
+      let scope = current.accountScope, let date = current.updatedAt,
+      let previous = history.last(where: {
+        $0.providerID == .codex && $0.codexPlan?.accountKey == plan.accountKey
+      }), date >= previous.recordedAt, let old = previous.codexPlan, old.tier != plan.tier
+    else { return nil }
+    return UsageHistoryEvent(providerID: .codex, metricID: nil, accountScope: scope,
+      date: date, kind: .planChange, previousScope: previous.accountScope,
+      previousPlan: old.tier, newPlan: plan.tier)
+  }
 
   static func events(previous: ProviderUsageState?, current: ProviderUsageState)
     -> [UsageHistoryEvent]
@@ -125,7 +167,7 @@ enum UsageHistoryInsights {
       [
         "event", event.providerID.rawValue, event.metricID ?? "", event.accountScope ?? "legacy",
         formatter.string(from: event.date),
-        "", "", event.kind.title,
+        "", "", event.title,
       ].map(cell).joined(separator: ",")
     }
     return rows.joined(separator: "\n") + "\n"

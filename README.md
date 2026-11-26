@@ -59,6 +59,7 @@ used for the menu-bar summary. Provider order and the displayed window can be cu
 - Last known data is labeled during transient network failures; authentication or malformed-data failures clear old usage
 - Trends retain flat chart rendering and cached queries, showing all windows and local history by default, including older records without account tags
 - Optional window/source/unit filters, sampling gaps, and quota-change events
+- Codex trends record plan changes when a refresh first observes a different tier for the same account.
 - Explicit exhaustion estimates only when enough recent continuous samples are available
 - Configurable 7/30/90-day retention (up to 10,000 samples), CSV export, and confirmed history clearing
 - Opt-in per-window low-quota, balance, recovery, and reset-expiry notifications, with quiet hours and deduplication
@@ -74,7 +75,7 @@ used for the menu-bar summary. Provider order and the displayed window can be cu
 
 | Provider | Status | Configuration | Information shown |
 | --- | --- | --- | --- |
-| Codex | Available, default | Automatically discovers the local Codex CLI | Remaining percentage, usage windows, and reset times |
+| Codex | Available, default | Automatically discovers the local Codex CLI | Remaining percentage and reset time per window, credit balance, and available manual resets with their expiry. A locally recorded grant for the current account shows the original award amount and the expiration date from the grant email. |
 | Claude Code | Available | Automatically discovers Claude Code and installs an owned status-line collector | Available usage windows and reset times |
 | Cursor | Teams available; Personal is web-only | Teams admin API key with an inline Teams/Personal switch | Team spend and member count for the current cycle; official Usage page for Personal |
 | Kimi Code | Available, best effort | Automatically discovers Kimi Code and reads its local login session | Subscription quota windows |
@@ -184,6 +185,7 @@ GitHub Release. Ordinary branch pushes do not publish a release.
   Failed recovery shows sign-in guidance; network and permission errors do not
   trigger authentication recovery. AI Usage never reads or writes Codex tokens
   directly. See the [authentication recovery design](docs/codex-authentication-recovery.md).
+- **Codex grant emails.** To record an award, use the current account’s `codexPlan.accountKey` from `usage-cache.json` as the key in `~/Library/Application Support/AI Usage Monitor/codex-credit-grants.json`. Its value has an integer `amount` for the original award and an `expiresOn` date in `YYYY-MM-DD` format. The panel reads the record on refresh.
 - **Claude Code:** enabling the provider may add an AI Usage-owned
   `statusLine` command to `~/.claude/settings.json`. Existing unrelated
   `statusLine` configurations are not overwritten. Disabling the provider

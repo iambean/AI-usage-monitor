@@ -27,7 +27,7 @@ final class AppModel: ObservableObject {
   @Published private(set) var notificationMessage: String?
   @Published private(set) var historyMessage: String?
   @Published private(set) var resetInProgress = false
-  @Published private(set) var resetMessage: String?
+  @Published private(set) var resetFeedback: CodexResetFeedback?
   private var maintenanceTask: Task<Void, Never>?
   private var checkedResets: [String: Date] = [:]
   private var historyRevision = 0
@@ -740,13 +740,17 @@ final class AppModel: ObservableObject {
     } catch { historyMessage = error.localizedDescription }
   }
 
+  func dismissResetFeedback() {
+    resetFeedback = nil
+  }
+
   func consumeCodexReset() {
     guard !resetInProgress, let provider = providers[.codex] as? CodexUsageProvider,
       let state = state(for: .codex), state.status == .connected,
       (state.resetCredits?.availableCount ?? 0) > 0
     else { return }
     resetInProgress = true
-    resetMessage = L10n.text("monitor.resetting", "正在重置并重新查询额度…")
+    resetFeedback = nil
     let attemptKey = "codex-reset-attempt-" + (state.accountScope ?? "local")
     let key = UserDefaults.standard.string(forKey: attemptKey) ?? UUID().uuidString
     UserDefaults.standard.set(key, forKey: attemptKey)
@@ -754,31 +758,26 @@ final class AppModel: ObservableObject {
       defer { resetInProgress = false }
       do {
         let outcome = try await provider.consumeReset(idempotencyKey: key)
+        if self.state(for: .codex)?.accountScope == state.accountScope {
+          resetFeedback = CodexResetFeedback(outcome: outcome)
+        }
         switch outcome {
         case "reset", "alreadyRedeemed", "resetRefreshPending":
           UserDefaults.standard.removeObject(forKey: attemptKey)
-          resetMessage =
-            outcome == "resetRefreshPending"
-            ? L10n.text("monitor.resetPendingRefresh", "重置已确认；额度读取失败，请点击刷新，勿重复使用次数。")
-            : L10n.text("monitor.resetDone", "重置已确认，已重新查询额度。")
           usageEvents.append(
             UsageHistoryEvent(
               providerID: .codex, metricID: nil,
               accountScope: state.accountScope, date: .now, kind: .manualReset))
           persistHistory()
-        case "nothingToReset":
+        case "nothingToReset", "noCredit":
           UserDefaults.standard.removeObject(forKey: attemptKey)
-          resetMessage = L10n.text("monitor.nothingToReset", "当前没有可重置的额度，未消耗次数。")
-        case "noCredit":
-          UserDefaults.standard.removeObject(forKey: attemptKey)
-          resetMessage = L10n.text("monitor.noResetCredit", "当前没有可用重置次数。")
         default:
-          resetMessage = L10n.text("monitor.resetUncertain", "暂未确认重置结果；重试会沿用同一次请求。")
+          break
         }
       } catch {
-        resetMessage =
-          error.localizedDescription + "\n"
-          + L10n.text("monitor.resetUncertain", "暂未确认重置结果；重试会沿用同一次请求。")
+        if self.state(for: .codex)?.accountScope == state.accountScope {
+          resetFeedback = .uncertain(error.localizedDescription)
+        }
       }
     }
   }
@@ -918,7 +917,10 @@ final class AppModel: ObservableObject {
     guard enabledProviderIDs.contains(state.id) else { return }
     let previous = self.state(for: state.id)
     let previousEventCount = usageEvents.count
-    if state.id == .codex, state.status == .connected, !resetInProgress { resetMessage = nil }
+    // Keep the result visible across refreshes, but never carry it to another account.
+    if state.id == .codex, previous?.accountScope != state.accountScope {
+      resetFeedback = nil
+    }
     if !(state.id == .codex && resetInProgress) {
       usageEvents.append(
         contentsOf: UsageHistoryInsights.events(previous: previous, current: state))
@@ -931,8 +933,10 @@ final class AppModel: ObservableObject {
     orderStates()
     UsageCacheStore.save(providerStates)
     if state.status == .connected {
+      let planChange = UsageHistoryInsights.planChange(in: usageHistory, current: state)
+      if let planChange { usageEvents.append(planChange) }
       let updatedHistory = UsageHistoryStore.record(
-        state, in: usageHistory, retentionDays: preferences.retentionDays)
+        state, in: usageHistory, retentionDays: preferences.retentionDays, planChanged: planChange != nil)
       if updatedHistory != usageHistory || usageEvents.count != previousEventCount {
         usageHistory = updatedHistory
         pruneHistory()

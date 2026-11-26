@@ -277,3 +277,27 @@
 
 "usage.apiBalance" = "API 可用余额";
 "usage.balanceCurrencyUnknown" = "余额 · 币种未提供";
+"codexCredits.title" = "Credit 余额";
+"codexCredits.expiry" = "到期时间";
+"codexCredits.grantAmount" = "获赠 %@ 积分";
+"codexCredits.grantExpiresOn" = "%@到期";
+"codexCredits.grantExpirySource" = "来自额度发放邮件";
+"codexCredits.expiryUnknown" = "到期时间未提供";
+"codexCredits.openOfficialUsage" = "查看官方用量";
+"codexCredits.unlimited" = "无限";
+"codexCredits.available" = "可用";
+"codexCredits.noneAvailable" = "无可用额度";
+"monitor.resetSuccessTitle" = "重置成功";
+"monitor.resetAlreadyTitle" = "这次重置已完成";
+"monitor.resetPendingTitle" = "重置已完成，额度待更新";
+"monitor.resetUnusedTitle" = "未使用重置次数";
+"monitor.resetUncertainTitle" = "暂未确认重置结果";
+"monitor.resetSuccessBody" = "已使用 1 次重置，额度与剩余次数已更新。";
+"monitor.resetAlreadyBody" = "此前的请求已成功，本次未重复扣除次数。额度与剩余次数已更新。";
+"monitor.dismissResetFeedback" = "关闭重置结果";
+"monitor.eventPlanChange" = "套餐变更";
+"monitor.eventPlanUpgrade" = "套餐升级：%@ → %@";
+"monitor.eventPlanTransition" = "套餐变更：%@ → %@";
+"monitor.eventManualFiveHours" = "手动重置 · 5 小时额度 %d%% → %d%%";
+"trends.showRecentEvents" = "仅看最近 4 条";
+"trends.showAllEvents" = "查看全部 %d 条事件";

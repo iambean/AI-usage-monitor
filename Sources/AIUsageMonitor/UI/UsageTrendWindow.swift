@@ -42,6 +42,7 @@ struct UsageTrendView: View {
   @State private var selectedAccountID = UsageTrendAccountOption.all
   @State private var projection = UsageTrendProjection.empty
   @State private var hoverState = UsageTrendHoverState()
+  @State private var showEarlierEvents = false
   @State private var contentHeight: CGFloat = 0
 
   var body: some View {
@@ -214,10 +215,18 @@ struct UsageTrendView: View {
             .font(.system(size: 11))
             .foregroundStyle(.secondary)
         }
-        if !visibleEvents.isEmpty {
+        let events = visibleEvents
+        if !events.isEmpty {
           VStack(alignment: .leading, spacing: 4) {
-            ForEach(Array(visibleEvents.suffix(4))) { event in
-              Text(UsageTrendFormatting.dateText(event.date) + " · " + event.kind.title)
+            if events.count > 4 {
+              Button(showEarlierEvents
+                ? L10n.text("trends.showRecentEvents", "仅看最近 4 条")
+                : L10n.format("trends.showAllEvents", "查看全部 %d 条事件", events.count)
+              ) { showEarlierEvents.toggle() }
+              .font(.caption)
+            }
+            ForEach(showEarlierEvents ? events : Array(events.suffix(4))) { event in
+              Text(UsageTrendFormatting.dateText(event.date) + " · " + event.title)
                 .font(.system(size: 10)).foregroundStyle(.secondary)
             }
           }
@@ -334,13 +343,16 @@ struct UsageTrendView: View {
   }
 
   private var visibleEvents: [UsageHistoryEvent] {
-    guard let first = chartData.points.first else { return [] }
+    guard !chartData.points.isEmpty else { return [] }
+    let now = Date()
+    let cutoff = now.addingTimeInterval(-selectedRange.duration)
     let metricIDs = Set(chartData.points.map(\.metricID))
     let scopes = Set(chartData.points.map(\.accountScope))
     return model.usageEvents.filter {
-      $0.providerID == selectedProviderID && scopes.contains($0.accountScope)
+      $0.providerID == selectedProviderID
+        && (scopes.contains($0.accountScope) || $0.previousScope.map { scopes.contains($0) } == true)
         && ($0.metricID == nil || metricIDs.contains($0.metricID!))
-        && $0.date >= first.recordedAt && $0.date <= Date()
+        && $0.date >= cutoff && $0.date <= now
     }
   }
 

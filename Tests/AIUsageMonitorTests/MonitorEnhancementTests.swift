@@ -214,6 +214,40 @@ final class MonitorEnhancementTests: XCTestCase {
     XCTAssertNil(CodexAccountIdentity.parse(.object(["account": .null])))
   }
 
+  func testPlanChangesFollowTheAccountAcrossReloadsAndRapidTierSwitches() throws {
+    var points: [UsageHistoryPoint] = []
+    var tick = 0
+    func observe(_ email: String, _ tier: String) throws -> UsageHistoryEvent? {
+      let account = try XCTUnwrap(CodexAccountIdentity.parse(.object([
+        "account": .object(["email": .string(email), "planType": .string(tier)])
+      ])))
+      var state = sample(80)
+      state.accountScope = account.scope
+      state.codexPlan = account.planObservation
+      state.updatedAt = now.addingTimeInterval(Double(tick))
+      tick += 1
+      let event = UsageHistoryInsights.planChange(in: points, current: state)
+      points = UsageHistoryStore.record(state, in: points, now: try XCTUnwrap(state.updatedAt),
+        planChanged: event != nil)
+      return event
+    }
+
+    XCTAssertNil(try observe("a@example.com", "prolite"))
+    XCTAssertNil(try observe("b@example.com", "pro"))
+    points = try JSONDecoder().decode([UsageHistoryPoint].self, from: JSONEncoder().encode(points))
+    XCTAssertNil(try observe("a@example.com", "unknown"))
+    let upgrade = try XCTUnwrap(observe("a@example.com", "pro"))
+    XCTAssertEqual(upgrade.previousPlan, "prolite")
+    XCTAssertEqual(upgrade.newPlan, "pro")
+    XCTAssertNotEqual(upgrade.previousScope, upgrade.accountScope)
+    XCTAssertTrue(upgrade.title.contains("Pro Lite → Pro"))
+    XCTAssertTrue(UsageHistoryInsights.csv(points: [], events: [upgrade]).contains(upgrade.title))
+    XCTAssertNil(try observe("a@example.com", "pro"))
+    XCTAssertEqual(try observe("a@example.com", "prolite")?.previousPlan, "pro")
+    XCTAssertNil(try observe("a@example.com", "prolite"))
+    XCTAssertNil(try observe("b@example.com", "pro"))
+  }
+
   func testEventsDoNotGuessEveryIncreaseIsAReset() {
     let old = sample(10, reset: now.addingTimeInterval(100))
     var increased = sample(80, reset: now.addingTimeInterval(100))

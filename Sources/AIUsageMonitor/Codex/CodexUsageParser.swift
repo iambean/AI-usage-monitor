@@ -21,7 +21,8 @@ enum CodexUsageParser {
       )
     }
 
-    guard !metrics.isEmpty else {
+    let credits = creditBalance(from: root)
+    guard !metrics.isEmpty || credits != nil else {
       throw CodexClientError.rpc(
         L10n.text(
           "error.codexNoUsageWindow",
@@ -39,6 +40,7 @@ enum CodexUsageParser {
       metrics: metrics,
       updatedAt: now,
       message: nil,
+      codexCredits: credits,
       resetCredits: parseResetCredits(root["rateLimitResetCredits"], now: now)
     )
   }
@@ -56,6 +58,16 @@ enum CodexUsageParser {
     }
     guard var current else { return update }
 
+    // Rolling updates can omit account-level credits or send null for them.
+    if let credits = update.codexCredits {
+      current.codexCredits = credits
+    }
+    if params["rateLimitResetCredits"] != nil {
+      current.resetCredits = update.resetCredits
+    }
+    // A balance update alone does not refresh previously observed windows.
+    if update.metrics.isEmpty && !current.metrics.isEmpty { return current }
+
     for metric in update.metrics {
       if let index = current.metrics.firstIndex(where: { $0.id == metric.id }) {
         current.metrics[index] = metric
@@ -71,11 +83,17 @@ enum CodexUsageParser {
     )
     current.updatedAt = now
     current.message = nil
-    // Window-only notifications must not erase or re-date reset-credit details.
-    if params["rateLimitResetCredits"] != nil {
-      current.resetCredits = update.resetCredits
-    }
     return current
+  }
+
+  private static func creditBalance(from root: [String: JSONValue]) -> CodexCreditBalance? {
+    if let credits = CodexCreditBalance(snapshot: root["rateLimitsByLimitId"]?["codex"]?["credits"]) {
+      return credits
+    }
+    guard let snapshot = root["rateLimits"],
+      (snapshot["limitId"]?.stringValue ?? "codex") == "codex"
+    else { return nil }
+    return CodexCreditBalance(snapshot: snapshot["credits"])
   }
 
   private static func parseResetCredits(

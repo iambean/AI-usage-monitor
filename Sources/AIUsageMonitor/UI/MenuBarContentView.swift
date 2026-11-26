@@ -65,7 +65,8 @@ struct MenuBarContentView: View {
           onRefresh: { model.refresh(state.id) },
           onReset: state.id == .codex ? { model.consumeCodexReset() } : nil,
           resetInProgress: model.resetInProgress,
-          resetMessage: state.id == .codex ? model.resetMessage : nil
+          resetFeedback: state.id == .codex ? model.resetFeedback : nil,
+          onDismissResetFeedback: { model.dismissResetFeedback() }
         )
         if index < model.providerStates.count - 1 { Divider().padding(.vertical, 8) }
       }

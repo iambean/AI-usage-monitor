@@ -277,3 +277,27 @@
 
 "usage.apiBalance" = "Available API balance";
 "usage.balanceCurrencyUnknown" = "Balance · currency unspecified";
+"codexCredits.title" = "Credit balance";
+"codexCredits.expiry" = "Expires";
+"codexCredits.grantAmount" = "Grant of %@ credits";
+"codexCredits.grantExpiresOn" = "Expires %@";
+"codexCredits.grantExpirySource" = "From the credit grant email";
+"codexCredits.expiryUnknown" = "Expiration date not provided";
+"codexCredits.openOfficialUsage" = "View official usage";
+"codexCredits.unlimited" = "Unlimited";
+"codexCredits.available" = "Available";
+"codexCredits.noneAvailable" = "None available";
+"monitor.resetSuccessTitle" = "Reset successful";
+"monitor.resetAlreadyTitle" = "This reset is already complete";
+"monitor.resetPendingTitle" = "Reset complete; usage refresh pending";
+"monitor.resetUnusedTitle" = "No reset used";
+"monitor.resetUncertainTitle" = "Reset outcome unconfirmed";
+"monitor.resetSuccessBody" = "Used one reset. Usage and remaining resets have been updated.";
+"monitor.resetAlreadyBody" = "The earlier request succeeded. No additional reset was used. Usage and remaining resets have been updated.";
+"monitor.dismissResetFeedback" = "Dismiss reset result";
+"monitor.eventPlanChange" = "Plan changed";
+"monitor.eventPlanUpgrade" = "Plan upgrade: %@ → %@";
+"monitor.eventPlanTransition" = "Plan changed: %@ → %@";
+"monitor.eventManualFiveHours" = "Manual reset · 5-hour quota %d%% → %d%%";
+"trends.showRecentEvents" = "Show latest 4";
+"trends.showAllEvents" = "Show all %d events";

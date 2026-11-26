@@ -9,7 +9,8 @@ struct ProviderUsageRow: View {
   var onRefresh: (() -> Void)?
   var onReset: (() -> Void)?
   var resetInProgress = false
-  var resetMessage: String?
+  var resetFeedback: CodexResetFeedback?
+  var onDismissResetFeedback: () -> Void = {}
   @State private var resetCreditsExpanded = false
   @State private var confirmReset = false
 
@@ -48,34 +49,26 @@ struct ProviderUsageRow: View {
             metricsContent(now: context.date)
           }
           if state.id == .codex {
+            if let credits = state.codexCredits {
+              CodexCreditBalanceView(
+                credits: credits,
+                grant: state.codexCreditGrant,
+                now: context.date,
+                isStale: state.status == .stale
+              )
+            }
             CodexResetCreditsView(
               credits: state.resetCredits, isStale: state.status == .stale,
               isExpanded: $resetCreditsExpanded)
-            if resetCreditsExpanded, let onReset,
-              state.status == .connected, (state.resetCredits?.availableCount ?? 0) > 0
-            {
-              Button(
-                resetInProgress
-                  ? L10n.text("monitor.resetting", "正在重置并重新查询额度…")
-                  : L10n.text("monitor.useReset", "使用一次重置…")
-              ) { confirmReset = true }
-              .buttonStyle(.link)
-              .font(.system(size: 10))
-              .disabled(resetInProgress)
-              .alert(
-                L10n.text("monitor.confirmResetTitle", "使用一次重置？"), isPresented: $confirmReset
-              ) {
-                Button(L10n.text("common.cancel", "取消"), role: .cancel) {}
-                Button(
-                  L10n.text("monitor.confirmReset", "确认使用"), role: .destructive, action: onReset)
-              } message: {
-                Text(L10n.text("monitor.confirmResetBody", "这将消耗 1 次可用重置。完成后重新查询额度与剩余次数。"))
-              }
-            }
-            if let resetMessage {
-              Text(resetMessage).font(.system(size: 10)).foregroundStyle(.secondary)
-            }
           }
+        }
+        if state.id == .codex {
+          CodexResetActionView(
+            canReset: resetCreditsExpanded && onReset != nil
+              && state.status == .connected && (state.resetCredits?.availableCount ?? 0) > 0,
+            isInProgress: resetInProgress, feedback: resetFeedback,
+            confirmationRequested: $confirmReset,
+            onReset: { onReset?() }, onDismissFeedback: onDismissResetFeedback)
         }
       }
       .padding(.vertical, compact ? 3 : 5)
@@ -99,7 +92,9 @@ struct ProviderUsageRow: View {
 
   private var metric: UsageMetric? { state.selectedMetric(selectedMetricID) }
   private var canShowUsage: Bool { state.status == .connected || state.status == .stale }
-  private var hasStatusContent: Bool { state.status != .connected || state.metrics.isEmpty }
+  private var hasStatusContent: Bool {
+    state.status != .connected || (state.metrics.isEmpty && state.codexCredits == nil)
+  }
   private var hasMetricsContent: Bool {
     canShowUsage && !state.metrics.isEmpty
       && !(state.metrics.count == 1 && state.metrics.first?.value.kind == .balance)

@@ -176,6 +176,8 @@ actor CodexUsageProvider: UsageProvider {
     var state = try CodexUsageParser.parse(result: result)
     state.accountLabel = account?.label
     state.accountScope = account?.scope
+    state.codexPlan = account?.planObservation
+    state.codexCreditGrant = CodexCreditGrantStore.grant(for: account?.accountKey)
     return state
   }
 

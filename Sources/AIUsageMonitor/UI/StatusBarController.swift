@@ -5,20 +5,26 @@ import SwiftUI
 @MainActor
 final class StatusBarController: NSObject {
   private let model: AppModel
-  private let statusItem: NSStatusItem
-  private let panel: PersistentStatusPanel
+  let statusItem: NSStatusItem
+  let panel: PersistentStatusPanel
   private let hostingController: NSHostingController<AnyView>
   private let panelSizing = MenuPanelSizing()
   private var cancellables: Set<AnyCancellable> = []
+  private var outsideClickMonitor: Any?
+  private var localClickMonitor: Any?
 
-  init(model: AppModel) {
+  init(
+    model: AppModel,
+    notifications: NotificationCenter = .default,
+    workspaceNotifications: NotificationCenter = NSWorkspace.shared.notificationCenter
+  ) {
     self.model = model
     statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
     hostingController = NSHostingController(rootView: AnyView(EmptyView()))
     panel = PersistentStatusPanel(
       contentRect: NSRect(x: 0, y: 0, width: 350, height: 1),
-      styleMask: [.borderless, .nonactivatingPanel],
+      styleMask: [.borderless],
       backing: .buffered,
       defer: false
     )
@@ -37,16 +43,30 @@ final class StatusBarController: NSObject {
 
     configureStatusItem()
     configurePanel()
-    observeModel()
+    outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+      MainActor.assumeIsolated { self?.panel.orderOut(nil) }
+    }
+    localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+      MainActor.assumeIsolated {
+        if let self, event.window !== self.panel,
+          event.window !== self.statusItem.button?.window {
+          self.panel.orderOut(nil)
+        }
+      }
+      return event
+    }
+    observeModel(notifications: notifications, workspaceNotifications: workspaceNotifications)
     model.startIfNeeded()
   }
 
   deinit {
+    if let outsideClickMonitor { NSEvent.removeMonitor(outsideClickMonitor) }
+    if let localClickMonitor { NSEvent.removeMonitor(localClickMonitor) }
     NSStatusBar.system.removeStatusItem(statusItem)
   }
 
   @objc
-  private func togglePanel() {
+  func togglePanel() {
     if panel.isVisible {
       panel.orderOut(nil)
     } else {
@@ -54,10 +74,24 @@ final class StatusBarController: NSObject {
     }
   }
 
+  @objc
+  private func statusItemClicked() {
+    if panel.isVisible {
+      panel.orderOut(nil)
+      return
+    }
+    let revision = panel.presentationRevision
+    DispatchQueue.main.async { [weak self] in
+      guard let self, self.panel.presentationRevision == revision,
+        !self.panel.isVisible else { return }
+      self.showPanel()
+    }
+  }
+
   private func configureStatusItem() {
     guard let button = statusItem.button else { return }
     button.target = self
-    button.action = #selector(togglePanel)
+    button.action = #selector(statusItemClicked)
     button.sendAction(on: [.leftMouseUp])
     button.imagePosition = .imageLeading
     button.imageScaling = .scaleProportionallyDown
@@ -73,7 +107,7 @@ final class StatusBarController: NSObject {
     panel.isReleasedWhenClosed = false
     panel.animationBehavior = .utilityWindow
     panel.becomesKeyOnlyIfNeeded = false
-    WindowPresentationPolicy.natural.apply(to: panel)
+    WindowPresentationPolicy.menuPanel.apply(to: panel)
 
     hostingController.view.wantsLayer = true
     hostingController.view.layer?.cornerRadius = 16
@@ -81,12 +115,36 @@ final class StatusBarController: NSObject {
     hostingController.view.layer?.masksToBounds = true
   }
 
-  private func observeModel() {
-    NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
+  private func observeModel(
+    notifications: NotificationCenter, workspaceNotifications: NotificationCenter
+  ) {
+    // A nonactivating panel may already belong to an inactive app, so observing
+    // NSApplication deactivation alone misses switching apps and full-screen Spaces.
+    for name in [NSWorkspace.activeSpaceDidChangeNotification,
+      NSWorkspace.willSleepNotification] {
+      workspaceNotifications.publisher(for: name)
+        .receive(on: RunLoop.main)
+        .sink { [weak self] _ in self?.panel.orderOut(nil) }
+        .store(in: &cancellables)
+    }
+    workspaceNotifications.publisher(for: NSWorkspace.didActivateApplicationNotification)
+      .receive(on: RunLoop.main)
+      .sink { [weak self] notification in
+        guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey]
+          as? NSRunningApplication,
+          app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
+        self?.panel.orderOut(nil)
+      }
+      .store(in: &cancellables)
+    notifications.publisher(for: NSApplication.didResignActiveNotification)
+      .receive(on: RunLoop.main)
+      .sink { [weak self] _ in self?.panel.orderOut(nil) }
+      .store(in: &cancellables)
+    notifications.publisher(for: NSApplication.didChangeScreenParametersNotification)
       .receive(on: RunLoop.main)
       .sink { [weak self] _ in self?.resizeAndPositionPanel() }
       .store(in: &cancellables)
-    NotificationCenter.default.publisher(for: NSWindow.didChangeScreenNotification)
+    notifications.publisher(for: NSWindow.didChangeScreenNotification)
       .receive(on: RunLoop.main)
       .sink { [weak self] notification in
         guard let self, let window = notification.object as? NSWindow,
@@ -95,7 +153,7 @@ final class StatusBarController: NSObject {
         self.resizeAndPositionPanel()
       }
       .store(in: &cancellables)
-    NotificationCenter.default.publisher(for: .aiUsageOpenPanel)
+    notifications.publisher(for: .aiUsageOpenPanel)
       .receive(on: RunLoop.main)
       .sink { [weak self] _ in self?.showPanel() }
       .store(in: &cancellables)
@@ -142,13 +200,18 @@ final class StatusBarController: NSObject {
 
   private func showPanel() {
     model.panelDidOpen()
-    resizeAndPositionPanel()
-    WindowPresentationPolicy.natural.apply(to: panel)
+    resizeAndPositionPanel(force: true)
+    WindowPresentationPolicy.menuPanel.apply(to: panel)
+    panel.beginUserPresentation()
+    // This path is reached only by an explicit user click or notification action.
     NSApp.activate(ignoringOtherApps: true)
     panel.makeKeyAndOrderFront(nil)
+    panel.orderFrontRegardless()
   }
 
-  private func resizeAndPositionPanel() {
+  private func resizeAndPositionPanel(force: Bool = false) {
+    // Hidden windows must not be moved by polling or screen-change callbacks.
+    guard force || panel.isVisible else { return }
     guard let button = statusItem.button, let statusWindow = button.window,
       let screen = statusWindow.screen ?? panel.screen ?? NSScreen.main
     else { return }
@@ -159,15 +222,66 @@ final class StatusBarController: NSObject {
     }
     hostingController.view.layoutSubtreeIfNeeded()
     let frame = geometry.frame(contentHeight: hostingController.view.fittingSize.height)
-    panel.setContentSize(frame.size)
-    panel.setFrameOrigin(frame.origin)
+    // Avoid generating another screen-change notification for an unchanged frame.
+    if panel.frame != frame {
+      panel.setFrame(frame, display: panel.isVisible)
+    }
   }
 
 }
 
-private final class PersistentStatusPanel: NSPanel {
+final class PersistentStatusPanel: NSPanel {
+  private(set) var presentationRevision: UInt64 = 0
+  private var userPresentationAllowed = false
+
+  func beginUserPresentation() {
+    userPresentationAllowed = true
+    DiagnosticLog.record("panel_user_open")
+  }
+
+  override func orderOut(_ sender: Any?) {
+    presentationRevision &+= 1
+    userPresentationAllowed = false
+    super.orderOut(sender)
+  }
+
+  override func order(_ place: NSWindow.OrderingMode, relativeTo otherWin: Int) {
+    if place == .out {
+      presentationRevision &+= 1
+      userPresentationAllowed = false
+    }
+    guard place == .out || userPresentationAllowed else {
+      DiagnosticLog.record("panel_restore_blocked")
+      return
+    }
+    super.order(place, relativeTo: otherWin)
+  }
+
+  override func orderFrontRegardless() {
+    guard userPresentationAllowed else {
+      DiagnosticLog.record("panel_restore_blocked")
+      return
+    }
+    super.orderFrontRegardless()
+  }
+
+  override func makeKeyAndOrderFront(_ sender: Any?) {
+    guard userPresentationAllowed else { return }
+    super.makeKeyAndOrderFront(sender)
+  }
+
+  override func cancelOperation(_ sender: Any?) {
+    orderOut(sender)
+  }
+
   override var canBecomeKey: Bool { true }
   override var canBecomeMain: Bool { false }
+
+  override func resignKey() {
+    super.resignKey()
+    // Order out explicitly so later application activation cannot restore this panel.
+    orderOut(nil)
+  }
 }
 
 private struct SizedMenuPanel: View {

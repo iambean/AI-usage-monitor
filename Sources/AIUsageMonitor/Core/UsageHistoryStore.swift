@@ -15,10 +15,12 @@ struct UsageHistoryPoint: Identifiable, Codable, Sendable, Equatable {
   let scale: UsageHistoryScale
   let unit: String?
   let accountScope: String?
+  let codexPlan: CodexPlanObservation?
 
   init(
     providerID: ProviderID, metricID: String, metricLabel: String, recordedAt: Date,
-    value: Double, scale: UsageHistoryScale, unit: String?, accountScope: String? = nil
+    value: Double, scale: UsageHistoryScale, unit: String?, accountScope: String? = nil,
+    codexPlan: CodexPlanObservation? = nil
   ) {
     self.providerID = providerID
     self.metricID = metricID
@@ -28,6 +30,7 @@ struct UsageHistoryPoint: Identifiable, Codable, Sendable, Equatable {
     self.scale = scale
     self.unit = unit
     self.accountScope = accountScope
+    self.codexPlan = codexPlan
   }
 
   var id: String {
@@ -96,7 +99,8 @@ enum UsageHistoryStore {
     _ state: ProviderUsageState,
     in existingPoints: [UsageHistoryPoint],
     now: Date = Date(),
-    retentionDays: Int = 30
+    retentionDays: Int = 30,
+    planChanged: Bool = false
   ) -> [UsageHistoryPoint] {
     var result = pruned(existingPoints, now: now, retentionDays: retentionDays)
     guard state.status == .connected else { return result }
@@ -108,13 +112,16 @@ enum UsageHistoryStore {
           providerID: state.id,
           metric: metric,
           recordedAt: timestamp,
-          accountScope: state.accountScope
+          accountScope: state.accountScope,
+          codexPlan: state.codexPlan
         )
       else {
         continue
       }
 
-      if let lastIndex = result.lastIndex(where: { $0.seriesID == point.seriesID }) {
+      if !planChanged, let lastIndex = result.lastIndex(where: { $0.seriesID == point.seriesID }),
+        result[lastIndex].codexPlan == point.codexPlan
+      {
         let previous = result[lastIndex]
         let elapsed = point.recordedAt.timeIntervalSince(previous.recordedAt)
         if elapsed >= 0, elapsed < replacementInterval {
@@ -160,7 +167,8 @@ enum UsageHistoryStore {
     providerID: ProviderID,
     metric: UsageMetric,
     recordedAt: Date,
-    accountScope: String?
+    accountScope: String?,
+    codexPlan: CodexPlanObservation?
   ) -> UsageHistoryPoint? {
     let value: Double
     let scale: UsageHistoryScale
@@ -194,7 +202,8 @@ enum UsageHistoryStore {
       value: value,
       scale: scale,
       unit: unit,
-      accountScope: accountScope
+      accountScope: accountScope,
+      codexPlan: codexPlan
     )
   }
 }

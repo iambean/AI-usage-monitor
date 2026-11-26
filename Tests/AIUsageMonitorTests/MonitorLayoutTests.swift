@@ -102,6 +102,10 @@ final class MonitorLayoutTests: XCTestCase {
         id: "codex_bengalfox.secondary", label: "Spark · 周", value: .availablePercent(63),
         resetsAt: Date().addingTimeInterval(4 * 86_400), resetDescription: nil, period: .weekly),
     ]
+    codex.codexCredits = CodexCreditBalance(snapshot: .object([
+      "balance": .string("12345.6789"), "hasCredits": .bool(true), "unlimited": .bool(false),
+    ]))
+    codex.codexCreditGrant = CodexCreditGrant(amount: 4_321, expiresOn: "2099-04-15")
     codex.resetCredits = CodexResetCredits(
       availableCount: 3,
       credits: [CodexResetCredit(expiresAt: Date().addingTimeInterval(14 * 86_400))],
